@@ -1,0 +1,21 @@
+# Python / backend
+__pycache__/
+*.pyc
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.next/
+
+# Общее
+.env
+.env.local
+*.log
+.DS_Store
+.idea/
+.vscode/
