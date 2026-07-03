@@ -15,7 +15,7 @@ class Stat(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
 
-    name: Mapped[str] = mapped_column(String(50), unique=True)
+    name: Mapped[str] = mapped_column(String(50))
     level: Mapped[int] = mapped_column(Integer, default=1)
     current_xp: Mapped[int] = mapped_column (Integer, default=0)
     xp_to_next_level: Mapped[int] = mapped_column (Integer, default=100)

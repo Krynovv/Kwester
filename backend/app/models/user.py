@@ -1,6 +1,6 @@
 from __future__ import annotations
 from sqlalchemy import Integer, String, DateTime
-from sqlalchemy.orm import relationship, Mapped, mapped_column, 
+from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
 from ..database import Base
 from typing import TYPE_CHECKING
@@ -16,7 +16,7 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[str] = mapped_column(DateTime, datetime=datetime.utcnow)
+    created_at: Mapped[str] = mapped_column(DateTime, default=datetime.utcnow)
     image_file: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
     
     quests: Mapped[list["Quest"]] = relationship(back_populates="users")

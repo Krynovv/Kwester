@@ -2,8 +2,8 @@ from datetime import datetime, datetime_CAPI
 from enum import nonmember
 
 import config
-from models.quest import QuestType
-from pydantic import BaseModel, Field
+
+from pydantic import BaseModel, Field, ConfigDict
 from ..models.quest import QuestType, QuestStatus
 
 class QuestBase(BaseModel):
@@ -12,7 +12,7 @@ class QuestBase(BaseModel):
     tag_id: int | None = None
     stat_id: int | None = None
     quest_type: QuestType = QuestType.once
-    date_end = datetime | None = None
+    date_end: datetime | None = None
 
 class QuestCreate(QuestBase):
     reward_currency: int = Field(default=0, ge=0)
