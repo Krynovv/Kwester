@@ -1,13 +1,14 @@
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-
+from sqlalchemy.exc import IntegrityError
 from ..database import get_db
 from ..deps import get_current_user
 from ..models.user import User
 from ..models.stat import Stat
-from ..schemas.stat import StatRead
+from ..schemas.stat import StatRead, StatCreate 
+
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -19,3 +20,20 @@ async def list_stats(
         result = await db.execute(select(Stat).where(Stat.user_id == current_user.id))
         return result.scalars().all()
 
+@router.post("", response_model=StatRead, status_code=status.HTTP_201_CREATED)
+async def create_stat(
+    data: StatCreate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stat = Stat(user_id=current_user.id, **data.model_dump())
+    db.add(stat)
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Stat with this name already exists")
+
+    await db.refresh(stat)
+    return stat
