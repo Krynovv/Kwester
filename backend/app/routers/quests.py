@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from ..database import get_db
-from ..deps import get_current_user
+from ..core.database import get_db
+from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.tag import Tag
 from ..models.quest import Quest

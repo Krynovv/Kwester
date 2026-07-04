@@ -3,8 +3,8 @@ from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
-from ..database import get_db
-from ..auth import hash_password, verify_password, create_access_token
+from ..core.database import get_db
+from ..core.auth import hash_password, verify_password, create_access_token
 from ..models.user import User
 from ..models.stat import Stat
 from ..core.constant import DEFAULT_STATS

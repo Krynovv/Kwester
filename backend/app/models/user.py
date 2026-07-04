@@ -2,7 +2,7 @@ from __future__ import annotations
 from sqlalchemy import Integer, String, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
-from ..database import Base
+from ..core.database import Base
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:

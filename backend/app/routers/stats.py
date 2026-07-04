@@ -3,8 +3,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
-from ..database import get_db
-from ..deps import get_current_user
+from ..core.database import get_db
+from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.stat import Stat
 from ..schemas.stat import StatRead, StatCreate 

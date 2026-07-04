@@ -1,6 +1,6 @@
 from sqlalchemy import Integer, String, ForeignKey
 from sqlalchemy.orm import relationship, Mapped, mapped_column
-from ..database import Base
+from ..core.database import Base
 from typing import TYPE_CHECKING
 from sqlalchemy import UniqueConstraint
 
