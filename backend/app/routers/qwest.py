@@ -10,12 +10,12 @@ from ..schemas.quest import QuestRead
 
 router = APIRouter(prefix="/quest", tags=["quest"])
 
-@router.get("", responcse_model=list[QuestRead])
+@router.get("", response_model=list[QuestRead])
 async def list_quest(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await fb.execute(select(Quest).where(Quest.user_id == current_user.id))
+    result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
     return result.scalars().all()
 
 

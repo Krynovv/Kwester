@@ -10,11 +10,11 @@ from ..schemas.tag import TagRead
 
 router = APIRouter(prefix="/tag", tags=["tag"])
 
-@router.get("", responcse_model=list[TagRead])
+@router.get("", response_model=list[TagRead])
 async def list_quest(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-    result = await fb.execute(select(Tag).where(Tag.user_id == current_user.id))
+    result = await db.execute(select(Tag).where(Tag.user_id == current_user.id))
     return result.scalars().all()
 
