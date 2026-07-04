@@ -1,6 +1,5 @@
-from sqlalchemy import Column, Integer, String, Text, DateTime, ForeignKey
+from sqlalchemy import Integer, String, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from datetime import datetime
 from ..database import Base
 from typing import TYPE_CHECKING
 
@@ -18,8 +17,8 @@ class Tag(Base):
     linked_stat_id: Mapped[int | None] = mapped_column(ForeignKey("stats.id"))
     
     quests: Mapped[list["Quest"]] = relationship(back_populates="tags")
-    users: Mapped["User"] = relationship(back_populates="users")
+    users: Mapped["User"] = relationship(back_populates="tags")
     stats: Mapped["Stat | None"] = relationship(back_populates="tags") 
 
     def __repr__(self):
-        return f"<Tag(id={self.id}, name='{self.name}')"
+        return f"<Tag(id={self.id}, name='{self.name}')>"

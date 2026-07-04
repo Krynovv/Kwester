@@ -1,8 +1,6 @@
 from datetime import datetime, datetime_CAPI
 from enum import nonmember
 
-import config
-
 from pydantic import BaseModel, Field, ConfigDict
 from ..models.quest import QuestType, QuestStatus
 

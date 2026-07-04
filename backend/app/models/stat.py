@@ -7,6 +7,7 @@ from sqlalchemy import UniqueConstraint
 if TYPE_CHECKING:
     from .user import User
     from .quest import Quest
+    from .tag import Tag
 
 class Stat(Base):
     __tablename__ = "stats"
@@ -22,6 +23,7 @@ class Stat(Base):
 
     users: Mapped["User"] = relationship( back_populates="stats")
     quests: Mapped[list["Quest"]] = relationship(back_populates="stats")
+    tags: Mapped[list["Tag"]] = relationship(back_populates="stats")
 
     def __repr__(self):
         return f"<Stat(id={self.id}, name={self.name})>"
