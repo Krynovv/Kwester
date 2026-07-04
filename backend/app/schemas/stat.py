@@ -9,7 +9,7 @@ class StatCreate(StatBase):
 class StatUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=30)
 
-class ReadStat(StatBase):
+class StatRead(StatBase):
     model_config = ConfigDict(from_attributes=True)
 
     id: int
