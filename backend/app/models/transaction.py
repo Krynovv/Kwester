@@ -11,7 +11,7 @@ if TYPE_CHECKING:
 
 
 class TransactionReason(str, enum.Enum):
-    quest_comleted = "quest_completed"
+    quest_completed = "quest_completed"
     reward_purchased = "reward_purchased"
     manual_adjust = "manual_adjust"
 

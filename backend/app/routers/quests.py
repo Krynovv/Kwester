@@ -9,6 +9,8 @@ from ..models.tag import Tag
 from ..models.quest import Quest
 from ..models.stat import Stat
 from ..schemas.quest import QuestRead, QuestCreate
+from ..service.quest import complete_quest, refresh_recurring_quests
+
 
 router = APIRouter(prefix="/quest", tags=["quest"])
 
@@ -17,8 +19,11 @@ async def list_quest(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    await refresh_recurring_quests(db, current_user.id)
+    
     result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
     return result.scalars().all()
+
 
 @router.post("", response_model=QuestRead, status_code=status.HTTP_201_CREATED)
 async def create_quest(
@@ -45,3 +50,13 @@ async def create_quest(
     await db.commit()
     await db.refresh(quest)
     return quest
+
+@router.post("/{quest_id}/complete", response_model=QuestRead)
+async def complete_quest_endpoint(
+    quest_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    return await complete_quest(db, current_user.id, quest_id)
+
+

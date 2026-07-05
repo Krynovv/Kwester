@@ -38,6 +38,7 @@ class Quest(Base):
 
     date_start: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     date_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
 
     reward_currency: Mapped[int] = mapped_column(Integer, default=0)
     reward_xp: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,5 +1,5 @@
 from __future__ import annotations
-from app.models.revard import Reward
+from app.models.reward import Reward
 from sqlalchemy import Integer, String, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
