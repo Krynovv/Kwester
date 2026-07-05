@@ -1,4 +1,5 @@
 from __future__ import annotations
+from app.models.revard import Reward
 from sqlalchemy import Integer, String, DateTime
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime
@@ -9,6 +10,8 @@ if TYPE_CHECKING:
     from .quest import Quest
     from .stat import Stat
     from .tag import Tag
+    from .transaction import TransactionLog
+    from .reward import Reward
 
 class User(Base):
     __tablename__ = "users"
@@ -16,12 +19,16 @@ class User(Base):
     username: Mapped[str] = mapped_column(String(50), unique=True, nullable=False)
     email: Mapped[str] = mapped_column(String(100), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
-    created_at: Mapped[str] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     image_file: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
     
+    currency_balance: Mapped[int] = mapped_column(Integer, default=0)
+
     quests: Mapped[list["Quest"]] = relationship(back_populates="users")
     tags: Mapped[list["Tag"]] = relationship(back_populates="users")
     stats: Mapped[list["Stat"]] = relationship(back_populates="users")
+    transactions: Mapped[list["TransactionLog"]] = relationship(back_populates="user")
+    rewards: Mapped[list["Reward"]] = relationship(back_populates="user")
 
     @property
     def image_path(self) -> str:

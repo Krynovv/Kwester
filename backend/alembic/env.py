@@ -6,13 +6,14 @@ from sqlalchemy import pool
 
 from alembic import context
 
-from app.database import Base
+from app.core.database import Base
 from app.models.user import User
 from app.models.quest import Quest
 from app.models.stat import Stat
 from app.models.tag import Tag
-from app.config import settings
-
+from app.models.transaction import TransactionLog
+from app.core.config import settings
+from app.models.reward import Reward
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config
