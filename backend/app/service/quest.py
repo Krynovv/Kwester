@@ -66,7 +66,7 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
     today = now.date()
     current_week = now.isocalendar()[:2]
 
-    result = await db.eaxecute(
+    result = await db.execute(
         select(Quest).where(
             Quest.user_id == user_id,
             Quest.status == QuestStatus.done,
@@ -75,7 +75,7 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
     )
     quests = result.scalars().all()
     
-    changed = Fasle
+    changed = False
     for quest in quests:
         if quest.last_completed_at is None:
                 continue
@@ -87,7 +87,7 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
         elif quest.quest_type == QuestType.weekly:
             completed_week = quest.last_completed_at.isocalendar()[:2]
             if completed_week < current_week:
-                quest.status = QuestStatus.activec
+                quest.status = QuestStatus.active
                 changed = True
     if changed:
         await db.commit()
