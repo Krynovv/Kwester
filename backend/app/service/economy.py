@@ -1,0 +1,37 @@
+from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models.reward import Reward
+from ..models.user import User
+from ..models.transaction import TransactionLog, TransactionReason
+
+async def purchase_reward(db: AsyncSession, user_id:int, reward_id:int) -> Reward:
+    reward = await db.get(Reward, reward_id)
+
+    if reward is None or reward.user_id != user_id:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reward not found")
+
+    if reward.is_purchased:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reward already purchased")
+
+    result = await db.execute(
+            select(User).where(User.id == user_id).with_for_update()
+    )
+    user = result.scalar_one()
+
+    if user.currency_balance < reward.cost:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Недостаточно средств")
+
+    user.currency_balance -= reward.cost
+    reward.is_purchased = True
+
+    db.add(TransactionLog(
+        user_id=user.id,
+        amount=-reward.cost,
+        reason=TransactionReason.reward_purchased,
+    ))
+
+    await db.commit()
+    await db.refresh(reward)
+    return reward
