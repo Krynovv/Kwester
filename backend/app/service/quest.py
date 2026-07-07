@@ -1,6 +1,4 @@
 from datetime import datetime, timedelta
-from os import stat_result 
-from app.models import reward
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +26,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
     db.add(TransactionLog(
         user_id=user.id, 
         amount=quest.reward_currency,
-        reason=TransactionReason.quest_comleted,
+        reason=TransactionReason.quest_completed,
     ))
 
     if quest.stat_id:
@@ -92,3 +90,21 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
     if changed:
         await db.commit()
    
+async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
+    now = datetime.utcnow()
+
+    result = await db.execute(
+        select(Quest).where(
+            Quest.user_id = user_id,
+            Quest.status = QuestStatus.active
+            Quest.date_end.is_not(None),
+            Quest.date_end < now,
+        )        
+    )
+    overdue_quests = result.scalras().all()
+
+    for quest in overdue_quests:
+        quest.status = QuestStatus.failed
+
+    if overdue_quests:
+        await db.commit()

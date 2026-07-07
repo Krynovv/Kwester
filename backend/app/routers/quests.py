@@ -9,7 +9,7 @@ from ..models.tag import Tag
 from ..models.quest import Quest
 from ..models.stat import Stat
 from ..schemas.quest import QuestRead, QuestCreate
-from ..service.quest import complete_quest, refresh_recurring_quests
+from ..service.quest import complete_quest, refresh_recurring_quests, mark_overdue_quest_failed
 
 
 router = APIRouter(prefix="/quest", tags=["quest"])
@@ -20,7 +20,8 @@ async def list_quest(
     current_user: User = Depends(get_current_user),
 ):
     await refresh_recurring_quests(db, current_user.id)
-    
+    await mark_overdue_quest_failed(db, current_user.id)
+
     result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
     return result.scalars().all()
 
