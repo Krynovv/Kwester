@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -42,7 +42,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
                 stat.level += 1
                 stat.xp_to_next_level = int(stat.xp_to_next_level * 1.5)
 
-    quest.last_completed_at = datetime.utcnow()
+    quest.last_completed_at = datetime.now(timezone.utc)
 
     if quest.quest_type == QuestType.habit:
         quest.status = QuestStatus.active      
@@ -60,7 +60,7 @@ RESET_INTERVALS = {
 }
 
 async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
     today = now.date()
     current_week = now.isocalendar()[:2]
 
@@ -91,7 +91,7 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
         await db.commit()
    
 async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
-    now = datetime.utcnow()
+    now = datetime.now(timezone.utc)
 
     result = await db.execute(
         select(Quest).where(
@@ -101,7 +101,7 @@ async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
             Quest.date_end < now,
         )        
     )
-    overdue_quests = result.scalras().all()
+    overdue_quests = result.scalars().all()
 
     for quest in overdue_quests:
         quest.status = QuestStatus.failed

@@ -1,6 +1,6 @@
 from __future__ import annotations
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from sqlalchemy import Integer, DateTime, ForeignKey, Enum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -23,7 +23,7 @@ class TransactionLog(Base):
 
     amount: Mapped[int] = mapped_column(Integer)
     reason: Mapped[TransactionReason] = mapped_column(Enum(TransactionReason))
-    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     user: Mapped["User"] = relationship(back_populates="transactions")
 

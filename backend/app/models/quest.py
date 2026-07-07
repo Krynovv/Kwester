@@ -1,6 +1,6 @@
 from __future__ import annotations
 import enum
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Enum, DateTime, ForeignKey
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -36,9 +36,9 @@ class Quest(Base):
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
 
-    date_start: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
-    date_end: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
+    date_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
+    date_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)
 
     reward_currency: Mapped[int] = mapped_column(Integer, default=0)
     reward_xp: Mapped[int] = mapped_column(Integer, default=0)
