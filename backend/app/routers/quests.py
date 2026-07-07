@@ -8,7 +8,7 @@ from ..models.user import User
 from ..models.tag import Tag
 from ..models.quest import Quest
 from ..models.stat import Stat
-from ..schemas.quest import QuestRead, QuestCreate
+from ..schemas.quest import QuestRead, QuestCreate, QuestUpdate
 from ..service.quest import complete_quest, refresh_recurring_quests, mark_overdue_quest_failed
 
 
@@ -60,4 +60,46 @@ async def complete_quest_endpoint(
 ):
     return await complete_quest(db, current_user.id, quest_id)
 
+@router.patch("/{quest_id}", response_model=QuestRead)
+async def update_quest(
+    quest_id: int,
+    data: QuestUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    quest = await db.get(Quest, quest_id)
+    if quest is None or quest.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Quest not found")
+    
+    update_data = data.model_dump(exclude_unset=True)
+
+    if "tag_id" in update_data and update_data["tag_id"] is not None:
+        tag = await db.get(Tag, update_data["tag_id"])
+        if tag is None or tag.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Stat not found")
+    
+    if "stat_id" in update_data and update_data["stat_id"] is not None:
+        stat = await db.get(Stat, update_data["stat_id"])
+        if stat is None or stat.user_id != current_user.id:
+            raise HTTPException(status_code=404, detail="Stat not found")
+
+    for field, value in update_data.items():
+        setattr(quest, field, value)
+
+    await db.commit()
+    await db.refresh(quest)
+    return quest
+
+@router.delete("/{quet_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_quest(
+    quest_id: int, 
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    quest = await db.get(Quest, quest_id)
+    if quest is None or quest.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Quest not found")
+
+    await db.delete(quest)
+    await db.commit()
 

@@ -7,7 +7,7 @@ from ..core.database import get_db
 from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.stat import Stat
-from ..schemas.stat import StatRead, StatCreate 
+from ..schemas.stat import StatRead, StatCreate, StatUpdate
 
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -37,3 +37,41 @@ async def create_stat(
 
     await db.refresh(stat)
     return stat
+
+@router.patch("/{stat_id}", response_model=StatRead)
+async def update_stat(
+    stat_id: int,
+    data: StatUpdate,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stat = await db.get(Stat, stat_id)
+    if stat is None or stat.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Stat not found")
+
+    update_data = data.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(stat, field, value)
+
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(status_code=400, detail="Stat with this name already exists")
+
+    await db.refresh(stat)
+    return stat
+
+
+@router.delete("/{stat_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_stat(
+    stat_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stat = await db.get(Stat, stat_id)
+    if stat is None or stat.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Stat not found")
+
+    await db.delete(stat)
+    await db.commit()
