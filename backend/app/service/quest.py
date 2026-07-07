@@ -95,8 +95,8 @@ async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
 
     result = await db.execute(
         select(Quest).where(
-            Quest.user_id = user_id,
-            Quest.status = QuestStatus.active
+            Quest.user_id == user_id,
+            Quest.status == QuestStatus.active,
             Quest.date_end.is_not(None),
             Quest.date_end < now,
         )        
