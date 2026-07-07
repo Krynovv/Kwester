@@ -29,9 +29,9 @@ class Quest(Base):
     __tablename__ = "quests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL")
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     tag_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tags.id", ondelete="SET NULL"), nullable=True)
-    stat_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("stats.id", ondelete="CASCADE"), nullable=True)
+    stat_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("stats.id", ondelete="SET NULL"), nullable=True)
 
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
