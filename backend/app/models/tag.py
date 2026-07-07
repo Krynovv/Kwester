@@ -12,9 +12,9 @@ class Tag(Base):
     __tablename__ = "tags"
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
     name: Mapped[str] = mapped_column(String(50))
-    linked_stat_id: Mapped[int | None] = mapped_column(ForeignKey("stats.id"))
+    linked_stat_id: Mapped[int | None] = mapped_column(ForeignKey("stats.id", ondelete="SET NULL"))
     
     quests: Mapped[list["Quest"]] = relationship(back_populates="tags")
     users: Mapped["User"] = relationship(back_populates="tags")

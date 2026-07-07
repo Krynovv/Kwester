@@ -55,7 +55,7 @@ async def update_tag(
             raise HTTPException(status_code=404, detail="Stat not found")
 
     for field, value in update_data.items():
-        settattr(tag, field, value)
+        setattr(tag, field, value)
 
     await db.commit()
     await db.refresh(tag)

@@ -19,7 +19,7 @@ class TransactionLog(Base):
     __tablename__ = "transaction_logs"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
 
     amount: Mapped[int] = mapped_column(Integer)
     reason: Mapped[TransactionReason] = mapped_column(Enum(TransactionReason))

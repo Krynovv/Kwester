@@ -29,13 +29,13 @@ class Quest(Base):
     __tablename__ = "quests"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
-    tag_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tags.id"), nullable=True)
-    stat_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("stats.id"), nullable=True)
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="SET NULL")
+    tag_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("tags.id", ondelete="SET NULL"), nullable=True)
+    stat_id: Mapped[int | None] = mapped_column(Integer, ForeignKey("stats.id", ondelete="CASCADE"), nullable=True)
 
     name: Mapped[str] = mapped_column(String)
     description: Mapped[str | None] = mapped_column(Text)
-
+                                         
     date_start: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     date_end: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     last_completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True, default=None)

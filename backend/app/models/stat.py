@@ -14,7 +14,7 @@ class Stat(Base):
     __table_args__ = (UniqueConstraint("user_id", "name", name="uq_user_stat_name"),)
     
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
-    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id"))
+    user_id: Mapped[int] = mapped_column(Integer, ForeignKey("users.id", ondelete="CASCADE"))
 
     name: Mapped[str] = mapped_column(String(50))
     level: Mapped[int] = mapped_column(Integer, default=1)
