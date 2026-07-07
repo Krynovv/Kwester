@@ -1,34 +1,12 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import SecretStr
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 
-class Settings(BaseSettings):
-    app_name: str = "Kwester"
-    debug: bool = True
-    database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/qwester"
+from app.main import app
+from app.core.database import Base, get_db
+from app.core.config import settings
 
-    cors_origins: list[str] = [
-            "https://localhost:5173",
-            "https://localhost:3000",
-            "https://127.0.0.1:5173",
-            "https://127.0.0.1:3000",
-    ]
-    static_dir: str = "static"
-    image_dir: str = "static/images"
-
-    model_config = SettingsConfigDict(env_file=".env")
-    
-    secret_key: SecretStr
-    algorithm: str = "HS256"
-    access_token_expire_minutes: int = 30
-
-settings = Settings()
-
-TEST_DATABASE_URL = "postgresql+asyncpg://postgres:postgres@localhost:5432/qwester_test"
-
-engine = create_async_engine(TEST_DATABASE_URL)
+engine = create_async_engine(settings.test_database_url)
 TestSession = async_sessionmaker(engine, expire_on_commit=False)
 
 @pytest.fixture(scope="session", autouse=True)
@@ -42,7 +20,7 @@ async def setup_db():
 @pytest.fixture
 async def db_session():
     async with TestSession() as session:
-        yield async_session  
+        yield session  
         await session.rollback()
 
 @pytest.fixture
