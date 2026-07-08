@@ -1,7 +1,7 @@
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
-
+from sqlalchemy import text
 from app.main import app
 from app.core.database import Base, get_db
 from app.core.config import settings
@@ -22,6 +22,9 @@ async def db_session():
     async with TestSession() as session:
         yield session  
         await session.rollback()
+
+    async with engine.begin() as conn:
+        await conn.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
 
 @pytest.fixture
 async def client(db_session):

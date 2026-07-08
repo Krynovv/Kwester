@@ -1,3 +1,6 @@
+from io import RawIOBase
+
+from app.models import quest
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -18,6 +21,17 @@ async def list_quest(
 ):
     result = await db.execute(select(Tag).where(Tag.user_id == current_user.id))
     return result.scalars().all()
+
+@router.get("/{tag_id}", response_model=TagRead)
+async def get_tag(
+    tag_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    tag = await db.get(Tag, tag_id)
+    if tag is None or tag.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Tag not found")
+    return tag
 
 @router.post("", response_model=TagRead, status_code=status.HTTP_201_CREATED)
 async def created_tag(
@@ -41,16 +55,16 @@ async def update_tag(
     tag_id: int,
     data: TagUpdate,
     db: AsyncSession = Depends(get_db),
-    current_user: USer = Depends(get_current_user),
+    current_user: User = Depends(get_current_user),
 ):
     tag = await db.get(Tag, tag_id)
     if tag is None or tag.user_id != current_user.id:
-        raise HTTPException(status_code=404, detail="Tag not foung")
+        raise HTTPException(status_code=404, detail="Tag not found")
 
     update_data = data.model_dump(exclude_unset=True)
 
-    if "linked-stat_id" in update_data and update_data["linked-stat_id"] is not None:
-        stat = await db.get(Stat, update_data["linked-stat_id"])
+    if "linked_stat_id" in update_data and update_data["linked_stat_id"] is not None:
+        stat = await db.get(Stat, update_data["linked_stat_id"])
         if stat is None or stat.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Stat not found")
 

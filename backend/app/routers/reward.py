@@ -19,6 +19,17 @@ async def list_rewards (
     result = await db.execute(select(Reward).where(Reward.user_id == current_user.id))
     return result.scalars().all()
 
+@router.get("/{reward_id}", response_model=RewardRead)
+async def get_reward(
+    reward_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    reward = await db.get(Reward, reward_id)
+    if reward is None or reward.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Reward not found")
+    return reward
+
 @router.post("", response_model=RewardRead, status_code=status.HTTP_201_CREATED)
 async def created_reward(
     data: RewardCreate,

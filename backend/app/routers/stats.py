@@ -20,6 +20,17 @@ async def list_stats(
         result = await db.execute(select(Stat).where(Stat.user_id == current_user.id))
         return result.scalars().all()
 
+@router.get("/{stat_id}", response_model=StatRead)
+async def get_stat(
+    stat_id: int,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    stat = await db.get(Stat, stat_id)
+    if stat is None or stat.user_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Stat not found")
+    return stat
+
 @router.post("", response_model=StatRead, status_code=status.HTTP_201_CREATED)
 async def create_stat(
     data: StatCreate,
