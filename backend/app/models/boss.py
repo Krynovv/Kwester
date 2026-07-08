@@ -11,7 +11,7 @@ class Boss(Base):
     __tablename__ ="bosses"
 
     id: Mapped[int] = mapped_column(primary_key=True)
-    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", onedelete="CASCADE", unique=True))
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), unique=True)
     level: Mapped[int] = mapped_column(Integer, default=1)
     pending_failures: Mapped[int] = mapped_column(Integer, default=0)
 

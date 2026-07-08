@@ -12,6 +12,8 @@ if TYPE_CHECKING:
     from .tag import Tag
     from .transaction import TransactionLog
     from .reward import Reward
+    from .boss import Boss
+    from .boss_fight import BossFight
 
 class User(Base):
     __tablename__ = "users"
@@ -23,6 +25,8 @@ class User(Base):
     image_file: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
     
     currency_balance: Mapped[int] = mapped_column(Integer, default=0)
+    current_hp: Mapped[int] = mapped_column(Integer, default=100)
+    boss_currency_balance: Mapped[int] = mapped_column(Integer, default=0)
 
     quests: Mapped[list["Quest"]] = relationship(back_populates="users")
     tags: Mapped[list["Tag"]] = relationship(back_populates="users")
@@ -30,6 +34,7 @@ class User(Base):
     transactions: Mapped[list["TransactionLog"]] = relationship(back_populates="user")
     rewards: Mapped[list["Reward"]] = relationship(back_populates="user")
     boss_fights: Mapped[list["BossFight"]] = relationship(back_populates="users")
+    boss: Mapped[list["Boss | None"]] = relationship(back_populates="users")
 
     @property
     def image_path(self) -> str:

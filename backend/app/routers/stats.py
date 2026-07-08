@@ -40,8 +40,6 @@ async def create_stat(
     stat = Stat(user_id=current_user.id, **data.model_dump())
     db.add(stat)
     
-    if stat.is_default and "name" in update_data:
-        raise HTTPException(status_code=400, detail="Cannot rename a default stat")
     try:
         await db.commit()
     except IntegrityError:
@@ -63,6 +61,10 @@ async def update_stat(
         raise HTTPException(status_code=404, detail="Stat not found")
 
     update_data = data.model_dump(exclude_unset=True)
+
+    if stat.is_default and "name" in update_data:
+        raise HTTPException(status_code=400, detail="Cannot rename a default stat")
+
     for field, value in update_data.items():
         setattr(stat, field, value)
 
