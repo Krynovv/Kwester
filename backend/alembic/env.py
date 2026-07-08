@@ -14,6 +14,8 @@ from app.models.tag import Tag
 from app.models.transaction import TransactionLog
 from app.core.config import settings
 from app.models.reward import Reward
+from app.models.boss import Boss
+from app.models.boss_fight import BossFight
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
 config = context.config

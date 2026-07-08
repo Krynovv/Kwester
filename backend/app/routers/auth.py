@@ -9,7 +9,7 @@ from ..models.user import User
 from ..models.stat import Stat
 from ..core.constant import DEFAULT_STATS
 from ..schemas.user import UserCreate, UserRead
-
+from ..models.boss import Boss
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/register", response_model=UserRead, status_code=status.HTTP_201_CREATED)
@@ -26,8 +26,10 @@ async def register(data: UserCreate, db: AsyncSession = Depends(get_db)):
     db.add(user)
     await db.flush()
 
-    for stat_name in DEFAULT_STATS:
-        db.add(Stat(user_id=user.id, name=stat_name))
+    for stat_data in DEFAULT_STATS:
+        db.add(Stat(user_id=user.id, name=stat_data["name"], combat_role=stat_data["combat_role"], is_default=True,))
+    
+    db.add(Boss(user_id=user.id))
 
     await db.commit()
     await db.refresh(user)
