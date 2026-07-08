@@ -15,7 +15,7 @@ async def setup_db():
         await conn.run_sync(Base.metadata.drop_all)
         await conn.run_sync(Base.metadata.create_all)
     yield
-    await engine.despose()
+    await engine.dispose()
 
 @pytest.fixture
 async def db_session():
