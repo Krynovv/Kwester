@@ -25,14 +25,14 @@ async def list_quest(
     result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
     return result.scalars().all()
 
-@router.get("", response_model=list[QuestRead])
+@router.get("/{quest_id}", response_model=QuestRead)
 async def get_quest(
     quest_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     quest = await db.get(Quest, quest_id)
-    if quest is None or quest_id != current_user.id:
+    if quest is None or quest.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Quest not found")
     return quest
 
