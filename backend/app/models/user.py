@@ -29,6 +29,7 @@ class User(Base):
     stats: Mapped[list["Stat"]] = relationship(back_populates="users")
     transactions: Mapped[list["TransactionLog"]] = relationship(back_populates="user")
     rewards: Mapped[list["Reward"]] = relationship(back_populates="user")
+    boss_fights: Mapped[list["BossFight"]] = relationship(back_populates="users")
 
     @property
     def image_path(self) -> str:

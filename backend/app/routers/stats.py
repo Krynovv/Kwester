@@ -39,7 +39,9 @@ async def create_stat(
 ):
     stat = Stat(user_id=current_user.id, **data.model_dump())
     db.add(stat)
-
+    
+    if stat.is_default and "name" in update_data:
+        raise HTTPException(status_code=400, detail="Cannot rename a default stat")
     try:
         await db.commit()
     except IntegrityError:
@@ -84,5 +86,8 @@ async def delete_stat(
     if stat is None or stat.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Stat not found")
 
+    if stat.is_default:
+        raise HTTPException(status_code=400, detail="Cannot delete a default stat")
+    
     await db.delete(stat)
     await db.commit()

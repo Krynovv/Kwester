@@ -1,8 +1,16 @@
-from sqlalchemy import Integer, String, ForeignKey
+from sqlalchemy import Integer, String, ForeignKey, Enum
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from ..core.database import Base
 from typing import TYPE_CHECKING
 from sqlalchemy import UniqueConstraint
+import enum 
+
+class CombatRole(str, enum.Enum):
+    health = "health"
+    strength = "strength"
+    agility = "agility"
+    focus = "focus"
+    intellect = "intellect"
 
 if TYPE_CHECKING:
     from .user import User
@@ -20,6 +28,9 @@ class Stat(Base):
     level: Mapped[int] = mapped_column(Integer, default=1)
     current_xp: Mapped[int] = mapped_column (Integer, default=0)
     xp_to_next_level: Mapped[int] = mapped_column (Integer, default=100)
+
+    combat_role: Mapped[CombatRole | None] = mapped_column(Enum(CombatRole), nullable=True, default=None)
+    is_default: Mapped[bool] = mapped_column(default=False)
 
     users: Mapped["User"] = relationship( back_populates="stats")
     quests: Mapped[list["Quest"]] = relationship(back_populates="stats")
