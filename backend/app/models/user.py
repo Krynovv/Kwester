@@ -1,6 +1,6 @@
 from __future__ import annotations
 from app.models.reward import Reward
-from sqlalchemy import Integer, String, DateTime
+from sqlalchemy import Integer, String, DateTime, Date
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime, timezone
 from ..core.database import Base

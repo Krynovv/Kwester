@@ -8,7 +8,7 @@ DEFAULT_STATS = [
     {"name": "Здоровье", "combat_role": CombatRole.health},
 ]
 
-BOSS_TIRES = [
+BOSS_TIERS = [
     (1, "Гоблин"),
     (5, "Огр"),
     (10, "Голем"),
