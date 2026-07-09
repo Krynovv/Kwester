@@ -34,7 +34,7 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     result = await db.execute(select(User).where(User.id == user_id). with_for_update())
     user = result.scalar_one()
 
-    today = datetime.now(timezone.urc).date()
+    today = datetime.now(timezone.utc).date()
     if user.hp_regen_date == today:
         return
 
@@ -135,14 +135,14 @@ async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
     if won:
         intellect_level = intellect_stat.level if intellect_stat else 0
         currency_reward = WIN_BASE_CURRENCY + boss.level * WIN_CURRENCY_PER_BOSS_LEVEL
-        currency_reward += intellect_level * 2  # бонус интеллекта к награде
+        currency_reward += intellect_level * 2
 
         user.boss_currency_balance += currency_reward
 
         db.add(TransactionLog(
             user_id=user.id,
             amount=currency_reward,
-            reason=TransactionReason.quest_completed,  # либо заведи отдельный reason
+            reason=TransactionReason.boss_defeated,  
         ))
 
         stats_result = await db.execute(select(Stat).where(Stat.user_id == user_id, Stat.is_default == True))
