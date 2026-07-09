@@ -1,4 +1,3 @@
-from app.schemas import reward
 from fastapi import FastAPI
 from .routers import user, auth, quests, stats, tags, reward, boss
 

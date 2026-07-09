@@ -8,7 +8,7 @@ from ..models.stat import Stat
 from ..models.user import User
 from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
-from ..core.constant import EXHAUSTER_REWARD_MULTIPLIER
+from ..core.constant import EXHAUSTED_REWARD_MULTIPLIER
 
 async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest:
     quest = await db.get(Quest, quest_id)
@@ -23,13 +23,14 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
     result = await db.execute(select(User).where(User.id == user_id).with_for_update())
     user = result.scalar_one()
     
-    multiplier = EXHAUSTER_REWARD_MULTIPLIER if user.current_hp == 0 else 1.0
-    user.currency_balance += round(quest.reward_currency * multiplier)
+    multiplier = EXHAUSTED_REWARD_MULTIPLIER if user.current_hp == 0 else 1.0
     
+    reward_amount = round(quest.reward_currency * multiplier))
+    user.currency_balance += reward_amount    
 
     db.add(TransactionLog(
         user_id=user.id, 
-        amount=quest.reward_currency,
+        amount=reward_amount,
         reason=TransactionReason.quest_completed,
     ))
 
