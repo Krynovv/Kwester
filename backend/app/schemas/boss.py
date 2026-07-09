@@ -11,6 +11,6 @@ class BossStatus(BaseModel):
 
 class BossFightResult(BaseModel):
     result: str
-    damage_dealth: int
+    damage_dealt: int
     boss_hp: int
     boss_level_at_time: int

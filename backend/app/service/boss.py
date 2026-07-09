@@ -115,18 +115,22 @@ async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
     health_stat = await _get_stat_by_role(db, user_id, CombatRole.health)
     intellect_stat = await _get_stat_by_role(db, user_id, CombatRole.intellect)
 
-    distinct_tags_result = await db.execute(
-        select(func.count(func.distinct(Quest.tag_id))).where(
+    distinct_stats_result = await db.execute(
+        select(func.count(func.distinct(Quest.stat_id)))
+        .join(Stat, Stat.id == Quest.stat_id)
+        .where(
             Quest.user_id == user_id,
-            Quest.tag_id.is_not(None),
+            Quest.stat_id.is_not(None),
+            Stat.is_default == True,
             func.date(Quest.last_completed_at) == today,
         )
     )
-    distinct_tags = distinct_tags_result.scalar() or 0
+    distinct_stats = distinct_stats_result.scalar() or 0
 
     strength_level = strength_stat.level if strength_stat else 0
-    damage_dealt = strength_level * distinct_tags
+    damage_dealt = strength_level * distinct_stats
 
+    
     boss_hp = calculate_boss_hp(boss.level)
     max_hp = calculate_max_hp(health_stat.level if health_stat else 0)
 

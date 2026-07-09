@@ -1,4 +1,13 @@
 from ..models.stat import CombatRole
+from ..models.quest import QuestType
+
+QUEST_TYPE_REWARDS = {
+    QuestType.once: {"currency": 10, "xp": 15},
+    QuestType.daily: {"currency": 5, "xp": 8},
+    QuestType.weekly: {"currency": 20, "xp": 30},
+    QuestType.habit: {"currency": 3, "xp": 5},
+}
+
 
 DEFAULT_STATS = [
     {"name": "Сила", "combat_role": CombatRole.strength},
@@ -32,5 +41,5 @@ WIN_BASE_XP = 50
 HEAL_COST = 20
 HEAL_PERCENT = 0.5
 
-FIGHT_WINDOW_START_HOUR = 17
+FIGHT_WINDOW_START_HOUR = 10
 

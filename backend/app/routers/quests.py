@@ -1,3 +1,4 @@
+from app.models import reward
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
@@ -10,7 +11,7 @@ from ..models.quest import Quest
 from ..models.stat import Stat
 from ..schemas.quest import QuestRead, QuestCreate, QuestUpdate
 from ..service.quest import complete_quest, refresh_recurring_quests, mark_overdue_quest_failed
-
+from ..core.constant import QUEST_TYPE_REWARDS
 
 router = APIRouter(prefix="/quest", tags=["quest"])
 
@@ -51,9 +52,13 @@ async def create_quest(
         stat = await db.get(Stat, data.stat_id)
         if stat is None or stat.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Stat not found")
+    
+    rewards = QUEST_TYPE_REWARDS[data.quest_type]
 
     quest = Quest(
         user_id=current_user.id,
+        reward_currency=rewards["currency"],
+        reward_xp=rewards["xp"],
         **data.model_dump(),
     )
 
