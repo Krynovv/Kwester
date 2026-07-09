@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.quest import Quest, QuestStatus, QuestType
 from ..models.stat import Stat
 from ..models.user import User
+from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
 from ..core.constant import EXHAUSTER_REWARD_MULTIPLIER
 
@@ -37,9 +38,9 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
             select(Stat).where(Stat.id == quest.stat_id).with_for_update()     
         )
         stat = stat_result.scalar_one_or_none()
-        stat.current_xp += round(quest.reward_xp * multiplier)
+        
         if stat is not None:
-            stat.current_xp += quest.reward_xp
+            stat.current_xp += round(quest.reward_xp * multiplier)
             while stat.current_xp >= stat.xp_to_next_level:
                 stat.current_xp -= stat.xp_to_next_level
                 stat.level += 1
@@ -108,6 +109,13 @@ async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
 
     for quest in overdue_quests:
         quest.status = QuestStatus.failed
-
     if overdue_quests:
+        boss_result = await db.execute(select(Boss).where(Boss.user_id == user_id).with_for_update())
+        boss = boss_result.scalar_one_or_none()
+        if boss:
+            boss.pending_failures += len(overdue_quests)
+
         await db.commit()
+    
+
+    

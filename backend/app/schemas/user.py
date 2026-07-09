@@ -24,4 +24,6 @@ class UserRead(UserBase):
     created_at: datetime
     image_file: str | None = None
     currency_balance: int
+    current_hp: int
+    boss_currency_balance: int
 
