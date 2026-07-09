@@ -15,4 +15,4 @@ class Boss(Base):
     level: Mapped[int] = mapped_column(Integer, default=1)
     pending_failures: Mapped[int] = mapped_column(Integer, default=0)
 
-    users: Mapped["User"] = relationship(back_populates="bosses")
+    users: Mapped["User"] = relationship(back_populates="boss")

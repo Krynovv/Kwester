@@ -16,6 +16,10 @@ async def list_rewards (
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    character_level = await get_character_level(db, current_user.id)
+    if reward.unlock_level > character_level:
+        raise HTTPException(status_code=400, detail="Reward not unlocked yet")
+    
     result = await db.execute(select(Reward).where(Reward.user_id == current_user.id))
     return result.scalars().all()
 
@@ -48,6 +52,10 @@ async def purchase_reward_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
+    character_level = await get_character_level(db, current_user.id)
+    if reward.unlock_level > character_level:
+        raise HTTPException(status_code=400, detail="Reward not unlocked yet")
+    
     return await purchase_reward(db, current_user.id, reward_id)
 
 @router.patch("/{reward_id}", response_model=RewardRead)

@@ -17,6 +17,7 @@ class Reward(Base):
     description: Mapped[str | None] = mapped_column(Text)
     cost: Mapped[int] = mapped_column(Integer)
     is_purchased: Mapped[bool] = mapped_column(Boolean, default=False)
+    unlock_level: Mapped[int] = mapped_column(Integer, default=0)
 
     user: Mapped["User"] = relationship(back_populates="rewards")
 
