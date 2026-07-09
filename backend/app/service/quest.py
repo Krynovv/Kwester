@@ -25,7 +25,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
     
     multiplier = EXHAUSTED_REWARD_MULTIPLIER if user.current_hp == 0 else 1.0
     
-    reward_amount = round(quest.reward_currency * multiplier))
+    reward_amount = round(quest.reward_currency * multiplier)
     user.currency_balance += reward_amount    
 
     db.add(TransactionLog(
