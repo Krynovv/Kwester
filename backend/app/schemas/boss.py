@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 
 class BossStatus(BaseModel):
+    boss_name: str
     boss_level: int 
     boss_hp: int
     pending_failures: int

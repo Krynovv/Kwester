@@ -12,8 +12,7 @@ class QuestBase(BaseModel):
     date_end: datetime | None = None
 
 class QuestCreate(QuestBase):
-    reward_currency: int = Field(default=0, ge=0)
-    reward_xp: int = Field(default=0, ge=0)
+    pass
 
 class QuestUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=100)

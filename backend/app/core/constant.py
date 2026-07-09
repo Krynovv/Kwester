@@ -8,7 +8,6 @@ QUEST_TYPE_REWARDS = {
     QuestType.habit: {"currency": 3, "xp": 5},
 }
 
-
 DEFAULT_STATS = [
     {"name": "Сила", "combat_role": CombatRole.strength},
     {"name": "Ловкость", "combat_role": CombatRole.agility},
@@ -24,6 +23,13 @@ BOSS_TIERS = [
     (20, "Темный колдун"),
     (40, "Дракон"),
 ]
+
+def get_boss_name(level: int) -> str:
+    name = BOSS_TIERS[0][1]
+    for threshold, tier_name in BOSS_TIERS:
+        if level >= threshold:
+            name = tier_name
+    return name
 
 BASE_MAX_HP = 100
 HP_PER_HEALTH_LEVEL = 10
@@ -41,5 +47,5 @@ WIN_BASE_XP = 50
 HEAL_COST = 20
 HEAL_PERCENT = 0.5
 
-FIGHT_WINDOW_START_HOUR = 10
+FIGHT_WINDOW_START_HOUR = 17
 

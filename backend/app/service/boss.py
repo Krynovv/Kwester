@@ -11,7 +11,7 @@ from ..models.quest import Quest
 from ..models.transaction import TransactionLog, TransactionReason
 from ..core.constant import (
     BASE_MAX_HP, HP_PER_HEALTH_LEVEL,
-    BOSS_BASE_HP, BOSS_HP_PER_LEVEL,
+    BOSS_BASE_HP, BOSS_HP_PER_LEVEL, BOSS_TIERS, get_boss_name,
     HP_REGEN_PERCENT, EXHAUSTED_REWARD_MULTIPLIER,
     WIN_BASE_CURRENCY, WIN_CURRENCY_PER_BOSS_LEVEL, WIN_BASE_XP,
     HEAL_COST, HEAL_PERCENT, FIGHT_WINDOW_START_HOUR,
@@ -77,6 +77,7 @@ async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
     window_open = now_hour >= FIGHT_WINDOW_START_HOUR
 
     return {
+        "boss_name": get_boss_name(boss.level),
         "boss_level": boss.level,
         "boss_hp": boss_hp,
         "pending_failures": boss.pending_failures,
