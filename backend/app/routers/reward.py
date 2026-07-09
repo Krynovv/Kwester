@@ -8,6 +8,7 @@ from ..models.user import User
 from ..models.reward import Reward
 from ..schemas.reward import RewardCreate, RewardRead, RewardUpdate
 from ..service.economy import purchase_reward
+from ..service.character import get_character_level
 
 router = APIRouter(prefix="/rewards", tags=["rewards"])
 
@@ -17,11 +18,11 @@ async def list_rewards (
     current_user: User = Depends(get_current_user)
 ):
     character_level = await get_character_level(db, current_user.id)
-    if reward.unlock_level > character_level:
-        raise HTTPException(status_code=400, detail="Reward not unlocked yet")
     
     result = await db.execute(select(Reward).where(Reward.user_id == current_user.id))
-    return result.scalars().all()
+    rewards =result.scalars().all()
+
+    return [r for r in rewards if r.unlock_level <= character_level]
 
 @router.get("/{reward_id}", response_model=RewardRead)
 async def get_reward(

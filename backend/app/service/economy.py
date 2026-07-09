@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models.reward import Reward
 from ..models.user import User
 from ..models.transaction import TransactionLog, TransactionReason
+from ..service.character import get_character_level
 
 async def purchase_reward(db: AsyncSession, user_id:int, reward_id:int) -> Reward:
     reward = await db.get(Reward, reward_id)
@@ -14,6 +15,10 @@ async def purchase_reward(db: AsyncSession, user_id:int, reward_id:int) -> Rewar
 
     if reward.is_purchased:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reward already purchased")
+
+    character_level = await get_character_level(db, user_id)
+    if reward.unlock_level > character_level:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reward not unlocked yet")
 
     result = await db.execute(
             select(User).where(User.id == user_id).with_for_update()
