@@ -7,6 +7,7 @@ from ..models.quest import Quest, QuestStatus, QuestType
 from ..models.stat import Stat
 from ..models.user import User
 from ..models.transaction import TransactionLog, TransactionReason
+from ..core.constant import EXHAUSTER_REWARD_MULTIPLIER
 
 async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest:
     quest = await db.get(Quest, quest_id)
@@ -20,8 +21,10 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
     
     result = await db.execute(select(User).where(User.id == user_id).with_for_update())
     user = result.scalar_one()
-
-    user.currency_balance += quest.reward_currency
+    
+    multiplier = EXHAUSTER_REWARD_MULTIPLIER if user.current_hp == 0 else 1.0
+    user.currency_balance += round(quest.reward_currency * multiplier)
+    
 
     db.add(TransactionLog(
         user_id=user.id, 
@@ -34,7 +37,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
             select(Stat).where(Stat.id == quest.stat_id).with_for_update()     
         )
         stat = stat_result.scalar_one_or_none()
-
+        stat.current_xp += round(quest.reward_xp * multiplier)
         if stat is not None:
             stat.current_xp += quest.reward_xp
             while stat.current_xp >= stat.xp_to_next_level:

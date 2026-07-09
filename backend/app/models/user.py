@@ -5,6 +5,7 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime, timezone
 from ..core.database import Base
 from typing import TYPE_CHECKING
+from datetime import date
 
 if TYPE_CHECKING:
     from .quest import Quest
@@ -27,6 +28,7 @@ class User(Base):
     currency_balance: Mapped[int] = mapped_column(Integer, default=0)
     current_hp: Mapped[int] = mapped_column(Integer, default=100)
     boss_currency_balance: Mapped[int] = mapped_column(Integer, default=0)
+    hp_regen_date: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
 
     quests: Mapped[list["Quest"]] = relationship(back_populates="users")
     tags: Mapped[list["Tag"]] = relationship(back_populates="users")
