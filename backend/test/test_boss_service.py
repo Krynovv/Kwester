@@ -1,7 +1,7 @@
 import pytest
 from datetime import date, datetime, timezone, timedelta
 from fastapi import HTTPException
-
+import datetime as datetime_module
 from app.models.user import User
 from app.models.stat import Stat, CombatRole
 from app.models.boss import Boss
@@ -73,10 +73,13 @@ async def test_fight_before_window_rejected(db_session, user_with_boss, monkeypa
 async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, monkeypatch):
     import app.service.boss as boss_module
 
+    real_datetime = datetime_module.datetime
+
     class FakeDatetime(datetime):
         @classmethod
         def now(cls, tz=None):
-            return datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)  # в окне боя
+            actual = real_datetime.now(tz)
+            return actual.replace(hour=18, minute=0, second=0, microsecond=0)  # в окне боя
 
     monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
 
