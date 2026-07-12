@@ -10,10 +10,10 @@ class Settings(BaseSettings):
 
 
     cors_origins: list[str] = [
-            "https://localhost:5173",
-            "https://localhost:3000",
-            "https://127.0.0.1:5173",
-            "https://127.0.0.1:3000",
+            "http://localhost:5173",
+            "http://localhost:3000",
+            "http://127.0.0.1:5173",
+            "http://127.0.0.1:3000",
     ]
     static_dir: str = "static"
     image_dir: str = "static/images"
@@ -25,5 +25,6 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
 
 settings = Settings()
- 
+
+
 
