@@ -23,6 +23,11 @@ def calculate_max_hp(health_level: int) -> int:
 def calculate_boss_hp(boss_level: int) -> int:
     return BOSS_BASE_HP + boss_level * BOSS_HP_PER_LEVEL
 
+async def get_boss_level(db: AsyncSession, user_id: int) -> int:
+    result = await db.execute(select(Boss).where(Boss.user_id == user_id))
+    boss = result.scalar_one()
+    return boss.level
+
 async def _get_stat_by_role(db: AsyncSession, user_id: int, role: CombatRole) -> Stat | None:
     result = await db.execute(
         select(Stat).where(Stat.user_id == user_id, Stat.combat_role == role)        

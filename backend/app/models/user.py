@@ -15,6 +15,7 @@ if TYPE_CHECKING:
     from .reward import Reward
     from .boss import Boss
     from .boss_fight import BossFight
+    from .inventory import Inventory
 
 class User(Base):
     __tablename__ = "users"
@@ -37,6 +38,7 @@ class User(Base):
     rewards: Mapped[list["Reward"]] = relationship(back_populates="user")
     boss_fights: Mapped[list["BossFight"]] = relationship(back_populates="users")
     boss: Mapped["Boss | None"] = relationship(back_populates="users")
+    inventory_items: Mapped[list["Inventory"]] = relationship(back_populates="users")
 
     @property
     def image_path(self) -> str:

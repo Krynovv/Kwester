@@ -15,6 +15,7 @@ class TransactionReason(str, enum.Enum):
     reward_purchased = "reward_purchased"
     manual_adjust = "manual_adjust"
     boss_defeated = "boss_defeated"
+    shop_purchased = "shop_purchased"
 
 class TransactionLog(Base):
     __tablename__ = "transaction_logs"

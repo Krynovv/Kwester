@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from .routers import user, auth, quests, stats, tags, reward, boss
+from .routers import user, auth, quests, stats, tags, reward, boss, shop
 from .core.config import settings
 
 app = FastAPI(title="Kwester")
@@ -20,3 +20,4 @@ app.include_router(tags.router)
 app.include_router(reward.router)
 app.include_router(user.router)
 app.include_router(boss.router)
+app.include_router(shop.router)
