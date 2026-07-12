@@ -1,4 +1,4 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { fetchMe } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
@@ -33,7 +33,9 @@ export default function Layout() {
         </nav>
 
         <div className="flex items-center gap-4 text-sm">
-          <span className="text-gray-300">{user?.username}</span>
+          <Link to="/profile" className="text-gray-300 hover:text-white">
+            {user?.username}
+          </Link>
           <span className="text-yellow-400">{user?.currency_balance} 🪙</span>
           <span className="text-orange-400">{user?.boss_currency_balance} ⚔️</span>
           <span className="text-red-400">{user?.current_hp} HP</span>

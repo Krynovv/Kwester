@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage'
 import QuestsPage from './pages/QuestsPage'
 import RewardsPage from './pages/RewardsPage'
 import ShopPage from './pages/ShopPage'
+import ProfilePage from './pages/ProfilePage'
 
 function App() {
   return (
@@ -20,6 +21,7 @@ function App() {
           <Route path="/quests" element={<QuestsPage />} />
           <Route path="/rewards" element={<RewardsPage />} />
           <Route path="/shop" element={<ShopPage />} />
+          <Route path="/profile" element={<ProfilePage />} />
         </Route>
       </Route>
     </Routes>

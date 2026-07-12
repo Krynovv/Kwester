@@ -1,5 +1,7 @@
+import os
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from .routers import user, auth, quests, stats, tags, reward, boss, shop
 from .core.config import settings
 
@@ -12,6 +14,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+os.makedirs(settings.image_dir, exist_ok=True)
+app.mount("/static", StaticFiles(directory=settings.static_dir), name="static")
 
 app.include_router(auth.router)
 app.include_router(quests.router)

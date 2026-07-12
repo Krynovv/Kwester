@@ -5,6 +5,7 @@ __pycache__/
 venv/
 *.egg-info/
 .pytest_cache/
+backend/static/
 
 # Node / frontend
 node_modules/
@@ -19,3 +20,4 @@ build/
 .DS_Store
 .idea/
 .vscode/
+.claude/settings.local.json
