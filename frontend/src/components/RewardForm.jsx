@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { useCreateReward } from '../hooks/useRewards'
+import Button from './Button'
 
 export default function RewardForm() {
   const [title, setTitle] = useState('')
@@ -32,23 +33,23 @@ export default function RewardForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3 rounded-lg border border-gray-800 bg-gray-900 p-4"
+      className="space-y-3 rounded-lg border border-cyber-border bg-cyber-card p-4"
     >
-      <h2 className="text-sm font-medium text-gray-300">Новая награда</h2>
+      <h2 className="font-display text-sm text-gray-300">НОВАЯ НАГРАДА</h2>
 
       <input
         type="text"
         placeholder="Название"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+        className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         required
       />
       <textarea
         placeholder="Описание (необязательно)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+        className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         rows={2}
       />
 
@@ -59,7 +60,7 @@ export default function RewardForm() {
           placeholder="Цена (валюта)"
           value={cost}
           onChange={(e) => setCost(e.target.value)}
-          className="w-1/2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
         <input
@@ -68,19 +69,15 @@ export default function RewardForm() {
           placeholder="Уровень открытия"
           value={unlockLevel}
           onChange={(e) => setUnlockLevel(e.target.value)}
-          className="w-1/2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
       </div>
 
-      {error && <p className="text-sm text-red-400">Не удалось создать награду</p>}
+      {error && <p className="text-sm text-cyber-danger">Не удалось создать награду</p>}
 
-      <button
-        type="submit"
-        disabled={isPending}
-        className="rounded bg-purple-600 px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
+      <Button type="submit" variant="primary" disabled={isPending}>
         {isPending ? 'Создаём...' : 'Создать награду'}
-      </button>
+      </Button>
     </form>
   )
 }

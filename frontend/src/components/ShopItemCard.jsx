@@ -1,7 +1,8 @@
 import { usePurchaseShopItem } from '../hooks/useShop'
+import Button from './Button'
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
-  const { mutate: purchase, isPending, error } = usePurchaseShopItem()
+  const { mutate: purchase, isPending } = usePurchaseShopItem()
 
   const canAfford = bossCurrencyBalance >= item.cost
   const canBuy = item.is_unlocked && canAfford
@@ -14,7 +15,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
   return (
     <div
       className={`rounded-lg border p-4 ${
-        item.is_unlocked ? 'border-gray-700 bg-gray-900' : 'border-gray-800 bg-gray-900/50 opacity-60'
+        item.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -22,22 +23,22 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
           <h3 className="font-medium text-gray-100">{item.name}</h3>
           <p className="mt-1 text-sm text-gray-400">{item.description}</p>
           <div className="mt-2 flex items-center gap-3 text-sm">
-            <span className="text-yellow-500">{item.cost} ⚔️</span>
+            <span className="text-cyber-secondary">{item.cost} ⚔️</span>
             {item.owned_charges > 0 && (
-              <span className="text-purple-400">Заряды: {item.owned_charges}</span>
+              <span className="text-cyber-accent">Заряды: {item.owned_charges}</span>
             )}
           </div>
         </div>
 
-        <button
+        <Button
+          variant="primary"
           onClick={() => purchase(item.key)}
           disabled={!canBuy || isPending}
-          className="shrink-0 rounded bg-red-700 px-3 py-1 text-sm text-white disabled:opacity-40"
+          className="shrink-0"
         >
           {buttonLabel}
-        </button>
+        </Button>
       </div>
-      {error && <p className="mt-2 text-sm text-red-400">Не удалось купить</p>}
     </div>
   )
 }

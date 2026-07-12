@@ -11,7 +11,7 @@ export default function QuestsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-100">Квесты</h1>
+      <h1 className="font-display text-2xl text-gray-100">КВЕСТЫ</h1>
 
       <QuestForm />
 

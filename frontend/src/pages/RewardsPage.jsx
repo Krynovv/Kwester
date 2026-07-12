@@ -10,7 +10,7 @@ export default function RewardsPage() {
 
   return (
     <div className="space-y-6">
-      <h1 className="text-2xl font-semibold text-gray-100">Награды</h1>
+      <h1 className="font-display text-2xl text-gray-100">НАГРАДЫ</h1>
 
       <RewardForm />
 

@@ -24,13 +24,13 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="text-2xl font-semibold text-gray-100">Профиль</h1>
+      <h1 className="font-display text-2xl text-gray-100">ПРОФИЛЬ</h1>
 
       <div className="flex items-center gap-5">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-gray-700 bg-gray-800"
+          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-cyber-primary/50 bg-cyber-muted glow-primary"
           title="Загрузить аватарку"
         >
           {user?.image_file ? (
@@ -64,26 +64,26 @@ export default function ProfilePage() {
 
       {uploading && <p className="text-sm text-gray-400">Загружаем аватарку...</p>}
       {uploadError && (
-        <p className="text-sm text-red-400">Не удалось загрузить изображение (макс. 5MB, jpg/png/webp)</p>
+        <p className="text-sm text-cyber-danger">Не удалось загрузить изображение (макс. 5MB, jpg/png/webp)</p>
       )}
 
       <div className="flex flex-wrap gap-4 text-sm">
-        <span className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2 text-gray-300">
-          Уровень персонажа: <span className="text-purple-400">{characterLevel}</span>
+        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-gray-300">
+          Уровень персонажа: <span className="text-cyber-secondary text-glow">{characterLevel}</span>
         </span>
-        <span className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2 text-yellow-500">
+        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-yellow-500">
           {user?.currency_balance} 🪙
         </span>
-        <span className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2 text-orange-400">
+        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-cyber-secondary">
           {user?.boss_currency_balance} ⚔️
         </span>
-        <span className="rounded-lg border border-gray-800 bg-gray-900 px-4 py-2 text-red-400">
+        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-cyber-danger">
           {user?.current_hp} HP
         </span>
       </div>
 
       <div>
-        <h2 className="mb-3 text-lg font-medium text-gray-100">Характеристики</h2>
+        <h2 className="mb-3 font-display text-lg text-gray-100">ХАРАКТЕРИСТИКИ</h2>
         <StatsOverview />
       </div>
     </div>

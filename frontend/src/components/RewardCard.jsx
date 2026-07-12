@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { usePurchaseReward, useDeleteReward, useUpdateReward } from '../hooks/useRewards'
+import Button from './Button'
 
 export default function RewardCard({ reward, currencyBalance }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -8,7 +9,7 @@ export default function RewardCard({ reward, currencyBalance }) {
   const [cost, setCost] = useState(String(reward.cost))
   const [unlockLevel, setUnlockLevel] = useState(String(reward.unlock_level))
 
-  const { mutate: purchase, isPending: purchasing, error } = usePurchaseReward()
+  const { mutate: purchase, isPending: purchasing } = usePurchaseReward()
   const { mutate: remove, isPending: deleting } = useDeleteReward()
   const { mutate: update, isPending: updating, error: updateError } = useUpdateReward()
 
@@ -41,20 +42,20 @@ export default function RewardCard({ reward, currencyBalance }) {
     return (
       <form
         onSubmit={handleSave}
-        className="space-y-2 rounded-lg border border-purple-700 bg-gray-900 p-4"
+        className="space-y-2 rounded-lg border border-cyber-secondary bg-cyber-card p-4"
       >
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
         <div className="flex gap-3">
           <input
@@ -62,7 +63,7 @@ export default function RewardCard({ reward, currencyBalance }) {
             min="1"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
-            className="w-1/2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+            className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
             required
           />
           <input
@@ -70,27 +71,19 @@ export default function RewardCard({ reward, currencyBalance }) {
             min="0"
             value={unlockLevel}
             onChange={(e) => setUnlockLevel(e.target.value)}
-            className="w-1/2 rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+            className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           />
         </div>
 
-        {updateError && <p className="text-sm text-red-400">Не удалось сохранить</p>}
+        {updateError && <p className="text-sm text-cyber-danger">Не удалось сохранить</p>}
 
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={updating}
-            className="rounded bg-purple-600 px-3 py-1 text-sm text-white disabled:opacity-50"
-          >
+          <Button type="submit" variant="secondary" disabled={updating}>
             {updating ? 'Сохраняем...' : 'Сохранить'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsEditing(false)}
-            className="rounded bg-gray-800 px-3 py-1 text-sm text-gray-300"
-          >
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>
             Отмена
-          </button>
+          </Button>
         </div>
       </form>
     )
@@ -99,7 +92,7 @@ export default function RewardCard({ reward, currencyBalance }) {
   return (
     <div
       className={`rounded-lg border p-4 ${
-        reward.is_unlocked ? 'border-gray-700 bg-gray-900' : 'border-gray-800 bg-gray-900/50 opacity-60'
+        reward.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
       <div className="flex items-start justify-between gap-4">
@@ -112,33 +105,21 @@ export default function RewardCard({ reward, currencyBalance }) {
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">
-          <button
-            onClick={() => purchase(reward.id)}
-            disabled={!canBuy || purchasing}
-            className="rounded bg-purple-600 px-3 py-1 text-sm text-white disabled:opacity-40"
-          >
+          <Button variant="accent" onClick={() => purchase(reward.id)} disabled={!canBuy || purchasing}>
             {buttonLabel}
-          </button>
+          </Button>
           {!reward.is_purchased && (
             <div className="flex gap-2">
-              <button
-                onClick={() => setIsEditing(true)}
-                className="text-xs text-gray-500"
-              >
+              <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
                 Изменить
-              </button>
-              <button
-                onClick={() => remove(reward.id)}
-                disabled={deleting}
-                className="text-xs text-gray-500 disabled:opacity-40"
-              >
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => remove(reward.id)} disabled={deleting}>
                 Удалить
-              </button>
+              </Button>
             </div>
           )}
         </div>
       </div>
-      {error && <p className="mt-2 text-sm text-red-400">Не удалось купить</p>}
     </div>
   )
 }

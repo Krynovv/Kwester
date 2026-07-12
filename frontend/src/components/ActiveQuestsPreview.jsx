@@ -13,8 +13,8 @@ export default function ActiveQuestsPreview() {
   return (
     <div>
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-medium text-gray-100">Активные квесты</h2>
-        <Link to="/quests" className="text-sm text-purple-400">
+        <h2 className="font-display text-lg text-gray-100">АКТИВНЫЕ КВЕСТЫ</h2>
+        <Link to="/quests" className="text-sm text-cyber-secondary hover:text-glow">
           Все квесты →
         </Link>
       </div>

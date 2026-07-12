@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useCompleteQuest, useDeleteQuest, useUpdateQuest } from '../hooks/useQuests'
 import { useStats } from '../hooks/useStats'
 import { toDatetimeLocalValue, fromDatetimeLocalValue } from '../utils/datetime'
+import Button from './Button'
 
 const typeLabels = {
   once: 'Разовый',
@@ -11,9 +12,9 @@ const typeLabels = {
 }
 
 const statusBorder = {
-  active: 'border-gray-700',
-  done: 'border-green-700 opacity-60',
-  failed: 'border-red-800 opacity-60',
+  active: 'border-cyber-border',
+  done: 'border-cyber-accent/50 opacity-60',
+  failed: 'border-cyber-primary/50 opacity-60',
 }
 
 export default function QuestCard({ quest, statName }) {
@@ -48,26 +49,26 @@ export default function QuestCard({ quest, statName }) {
     return (
       <form
         onSubmit={handleSave}
-        className="space-y-2 rounded-lg border border-purple-700 bg-gray-900 p-4"
+        className="space-y-2 rounded-lg border border-cyber-secondary bg-cyber-card p-4"
       >
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
         <div className="flex flex-wrap gap-3">
           <select
             value={statId}
             onChange={(e) => setStatId(e.target.value)}
-            className="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+            className="rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           >
             <option value="">Без привязки к стату</option>
             {stats?.map((s) => (
@@ -80,34 +81,26 @@ export default function QuestCard({ quest, statName }) {
             type="datetime-local"
             value={dateEnd}
             onChange={(e) => setDateEnd(e.target.value)}
-            className="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+            className="rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           />
         </div>
 
-        {updateError && <p className="text-sm text-red-400">Не удалось сохранить</p>}
+        {updateError && <p className="text-sm text-cyber-danger">Не удалось сохранить</p>}
 
         <div className="flex gap-2">
-          <button
-            type="submit"
-            disabled={updating}
-            className="rounded bg-purple-600 px-3 py-1 text-sm text-white disabled:opacity-50"
-          >
+          <Button type="submit" variant="secondary" disabled={updating}>
             {updating ? 'Сохраняем...' : 'Сохранить'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setIsEditing(false)}
-            className="rounded bg-gray-800 px-3 py-1 text-sm text-gray-300"
-          >
+          </Button>
+          <Button type="button" variant="ghost" onClick={() => setIsEditing(false)}>
             Отмена
-          </button>
+          </Button>
         </div>
       </form>
     )
   }
 
   return (
-    <div className={`rounded-lg border ${statusBorder[quest.status]} bg-gray-900 p-4`}>
+    <div className={`rounded-lg border ${statusBorder[quest.status]} bg-cyber-card p-4`}>
       <div className="flex items-start justify-between gap-4">
         <div>
           <h3 className="font-medium text-gray-100">{quest.name}</h3>
@@ -121,33 +114,22 @@ export default function QuestCard({ quest, statName }) {
               <span>· до {new Date(quest.date_end).toLocaleString('ru-RU')}</span>
             )}
             <span className="text-yellow-500">+{quest.reward_currency} 🪙</span>
-            <span className="text-purple-400">+{quest.reward_xp} XP</span>
+            <span className="text-cyber-secondary">+{quest.reward_xp} XP</span>
           </div>
         </div>
 
         <div className="flex shrink-0 gap-2">
           {quest.status === 'active' && (
-            <button
-              onClick={() => complete(quest.id)}
-              disabled={completing}
-              className="rounded bg-purple-600 px-3 py-1 text-sm text-white disabled:opacity-50"
-            >
+            <Button variant="accent" onClick={() => complete(quest.id)} disabled={completing}>
               Выполнить
-            </button>
+            </Button>
           )}
-          <button
-            onClick={() => setIsEditing(true)}
-            className="rounded bg-gray-800 px-3 py-1 text-sm text-gray-300"
-          >
+          <Button variant="ghost" onClick={() => setIsEditing(true)}>
             Изменить
-          </button>
-          <button
-            onClick={() => remove(quest.id)}
-            disabled={deleting}
-            className="rounded bg-gray-800 px-3 py-1 text-sm text-gray-300 disabled:opacity-50"
-          >
+          </Button>
+          <Button variant="ghost" onClick={() => remove(quest.id)} disabled={deleting}>
             Удалить
-          </button>
+          </Button>
         </div>
       </div>
     </div>
