@@ -3,7 +3,10 @@ import { useQuery } from '@tanstack/react-query'
 import { fetchMe } from '../api/auth'
 import { useAuthStore } from '../store/authStore'
 
-const navItems = [{ to: '/', label: 'Дашборд' }]
+const navItems = [
+  { to: '/', label: 'Дашборд' },
+  { to: '/quests', label: 'Квесты' },
+]
 
 export default function Layout() {
   const logout = useAuthStore((state) => state.logout)

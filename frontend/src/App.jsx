@@ -4,6 +4,7 @@ import Layout from './components/Layout'
 import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
+import QuestsPage from './pages/QuestsPage'
 
 function App() {
   return (
@@ -14,6 +15,7 @@ function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
+          <Route path="/quests" element={<QuestsPage />} />
         </Route>
       </Route>
     </Routes>
