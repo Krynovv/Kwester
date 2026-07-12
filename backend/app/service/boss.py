@@ -9,6 +9,7 @@ from ..models.boss_fight import BossFight
 from ..models.stat import Stat, CombatRole
 from ..models.quest import Quest
 from ..models.transaction import TransactionLog, TransactionReason
+from .inventory import consume_charge
 from ..core.constant import (
     BASE_MAX_HP, HP_PER_HEALTH_LEVEL,
     BOSS_BASE_HP, BOSS_HP_PER_LEVEL, BOSS_TIERS, get_boss_name,
@@ -74,7 +75,7 @@ async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
 
     today = datetime.now(timezone.utc).date()
     fight_result = await db.execute(
-        select(BossFight).where(BossFight.user_id == user_id, BossFight.fight_date == today)
+        select(BossFight).where(BossFight.user_id == user_id, BossFight.fight_date == today).limit(1)
     )
     already_fought = fight_result.scalar_one_or_none() is not None
 
@@ -106,9 +107,10 @@ async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
         )
 
     existing_fight = await db.execute(
-        select(BossFight).where(BossFight.user_id == user_id, BossFight.fight_date == today)
+        select(BossFight).where(BossFight.user_id == user_id, BossFight.fight_date == today).limit(1)
     )
-    if existing_fight.scalar_one_or_none() is not None:
+    already_fought = existing_fight.scalar_one_or_none() is not None
+    if already_fought and not await consume_charge(db, user_id, "extra_boss_fight"):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already fought today")
 
     boss_result = await db.execute(select(Boss).where(Boss.user_id == user_id).with_for_update())

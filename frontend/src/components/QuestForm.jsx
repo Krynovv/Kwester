@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useCreateQuest } from '../hooks/useQuests'
 import { useStats } from '../hooks/useStats'
+import { fromDatetimeLocalValue } from '../utils/datetime'
 
 const questTypes = [
   { value: 'once', label: 'Разовый' },
@@ -14,6 +15,7 @@ export default function QuestForm() {
   const [description, setDescription] = useState('')
   const [questType, setQuestType] = useState('once')
   const [statId, setStatId] = useState('')
+  const [dateEnd, setDateEnd] = useState('')
 
   const { data: stats } = useStats()
   const { mutate, isPending, error } = useCreateQuest()
@@ -26,6 +28,7 @@ export default function QuestForm() {
         description: description || null,
         quest_type: questType,
         stat_id: statId ? Number(statId) : null,
+        date_end: fromDatetimeLocalValue(dateEnd),
       },
       {
         onSuccess: () => {
@@ -33,6 +36,7 @@ export default function QuestForm() {
           setDescription('')
           setQuestType('once')
           setStatId('')
+          setDateEnd('')
         },
       }
     )
@@ -86,6 +90,14 @@ export default function QuestForm() {
             </option>
           ))}
         </select>
+
+        <input
+          type="datetime-local"
+          value={dateEnd}
+          onChange={(e) => setDateEnd(e.target.value)}
+          className="rounded border border-gray-700 bg-gray-800 px-3 py-2 text-sm text-gray-100"
+          title="Дедлайн (необязательно)"
+        />
       </div>
 
       {error && <p className="text-sm text-red-400">Не удалось создать квест</p>}

@@ -4,6 +4,9 @@ export const fetchQuests = () => api.get('/quest').then((r) => r.data);
 
 export const createQuest = (data) => api.post('/quest', data).then((r) => r.data);
 
+export const updateQuest = (questId, data) =>
+  api.patch(`/quest/${questId}`, data).then((r) => r.data);
+
 export const completeQuest = (questId) =>
   api.post(`/quest/${questId}/complete`).then((r) => r.data);
 

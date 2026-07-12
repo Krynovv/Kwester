@@ -7,6 +7,7 @@ const navItems = [
   { to: '/', label: 'Дашборд' },
   { to: '/quests', label: 'Квесты' },
   { to: '/rewards', label: 'Награды' },
+  { to: '/shop', label: 'Магазин' },
 ]
 
 export default function Layout() {
@@ -34,6 +35,7 @@ export default function Layout() {
         <div className="flex items-center gap-4 text-sm">
           <span className="text-gray-300">{user?.username}</span>
           <span className="text-yellow-400">{user?.currency_balance} 🪙</span>
+          <span className="text-orange-400">{user?.boss_currency_balance} ⚔️</span>
           <span className="text-red-400">{user?.current_hp} HP</span>
           <button
             onClick={logout}

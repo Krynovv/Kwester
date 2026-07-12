@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchQuests, createQuest, completeQuest, deleteQuest } from '../api/quests'
+import { fetchQuests, createQuest, updateQuest, completeQuest, deleteQuest } from '../api/quests'
 
 export function useQuests() {
   return useQuery({ queryKey: ['quests'], queryFn: fetchQuests })
@@ -9,6 +9,14 @@ export function useCreateQuest() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: createQuest,
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quests'] }),
+  })
+}
+
+export function useUpdateQuest() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ id, data }) => updateQuest(id, data),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['quests'] }),
   })
 }

@@ -64,12 +64,5 @@ SHOP_ITEMS = {
         "unlock_level": 10,
         "repeatable": True,
     },
-    "habit_shield": {
-        "name": "Свиток защиты привычки",
-        "description": "Спасает одну привычку от провала, если пропущен день",
-        "cost": 30,
-        "unlock_level": 5,
-        "repeatable": True,
-    },
 }
 
