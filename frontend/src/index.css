@@ -13,6 +13,8 @@
   --color-cyber-secondary: #2563eb;
   --color-cyber-accent: #22c55e;
   --color-cyber-danger: #f87171;
+  --color-cyber-cyan: #22d3ee;
+  --color-cyber-pink: #ec4899;
 }
 
 @utility text-glow {
@@ -29,6 +31,19 @@
 
 @utility glow-accent {
   box-shadow: 0 0 12px rgba(34, 197, 94, 0.5), 0 0 24px rgba(34, 197, 94, 0.15);
+}
+
+@utility bar-segments {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    90deg,
+    transparent 0px,
+    transparent 6px,
+    var(--color-cyber-bg) 6px,
+    var(--color-cyber-bg) 8px
+  );
 }
 
 :root {
@@ -114,6 +129,25 @@ body {
 
 .animate-toast-in {
   animation: toast-in 0.25s ease-out;
+}
+
+@keyframes level-up-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+    transform: scale(1);
+  }
+  30% {
+    box-shadow: 0 0 24px 4px rgba(34, 197, 94, 0.6);
+    transform: scale(1.04);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+    transform: scale(1);
+  }
+}
+
+.animate-level-up {
+  animation: level-up-pulse 1s ease-out;
 }
 
 @media (prefers-reduced-motion: reduce) {
