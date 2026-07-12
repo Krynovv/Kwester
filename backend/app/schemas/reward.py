@@ -21,3 +21,4 @@ class RewardRead(RewardBase):
     id: int
     user_id: int
     is_purchased: bool
+    is_unlocked: bool = False

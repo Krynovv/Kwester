@@ -12,17 +12,28 @@ from ..service.character import get_character_level
 
 router = APIRouter(prefix="/rewards", tags=["rewards"])
 
+async def _to_read(db: AsyncSession, user_id: int, reward: Reward) -> RewardRead:
+    character_level = await get_character_level(db, user_id)
+    return RewardRead.model_validate(reward).model_copy(
+        update={"is_unlocked": reward.unlock_level <= character_level}
+    )
+
 @router.get("", response_model=list[RewardRead])
 async def list_rewards (
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     character_level = await get_character_level(db, current_user.id)
-    
-    result = await db.execute(select(Reward).where(Reward.user_id == current_user.id))
-    rewards =result.scalars().all()
 
-    return [r for r in rewards if r.unlock_level <= character_level]
+    result = await db.execute(select(Reward).where(Reward.user_id == current_user.id))
+    rewards = result.scalars().all()
+
+    return [
+        RewardRead.model_validate(r).model_copy(
+            update={"is_unlocked": r.unlock_level <= character_level}
+        )
+        for r in rewards
+    ]
 
 @router.get("/{reward_id}", response_model=RewardRead)
 async def get_reward(
@@ -33,7 +44,7 @@ async def get_reward(
     reward = await db.get(Reward, reward_id)
     if reward is None or reward.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Reward not found")
-    return reward
+    return await _to_read(db, current_user.id, reward)
 
 @router.post("", response_model=RewardRead, status_code=status.HTTP_201_CREATED)
 async def created_reward(
@@ -45,7 +56,7 @@ async def created_reward(
     db.add(reward)
     await db.commit()
     await db.refresh(reward)
-    return reward
+    return await _to_read(db, current_user.id, reward)
 
 @router.post("/{reward_id}/purchase", response_model=RewardRead)
 async def purchase_reward_endpoint(
@@ -53,8 +64,8 @@ async def purchase_reward_endpoint(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
-       
-    return await purchase_reward(db, current_user.id, reward_id)
+    reward = await purchase_reward(db, current_user.id, reward_id)
+    return await _to_read(db, current_user.id, reward)
 
 @router.patch("/{reward_id}", response_model=RewardRead)
 async def update_reward(
@@ -76,7 +87,7 @@ async def update_reward(
 
     await db.commit()
     await db.refresh(reward)
-    return reward
+    return await _to_read(db, current_user.id, reward)
 
 
 @router.delete("/{reward_id}", status_code=status.HTTP_204_NO_CONTENT)

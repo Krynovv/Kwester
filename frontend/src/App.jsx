@@ -5,6 +5,7 @@ import LoginPage from './pages/LoginPage'
 import RegisterPage from './pages/RegisterPage'
 import DashboardPage from './pages/DashboardPage'
 import QuestsPage from './pages/QuestsPage'
+import RewardsPage from './pages/RewardsPage'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route element={<Layout />}>
           <Route path="/" element={<DashboardPage />} />
           <Route path="/quests" element={<QuestsPage />} />
+          <Route path="/rewards" element={<RewardsPage />} />
         </Route>
       </Route>
     </Routes>

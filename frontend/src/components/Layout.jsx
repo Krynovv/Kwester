@@ -6,6 +6,7 @@ import { useAuthStore } from '../store/authStore'
 const navItems = [
   { to: '/', label: 'Дашборд' },
   { to: '/quests', label: 'Квесты' },
+  { to: '/rewards', label: 'Награды' },
 ]
 
 export default function Layout() {
