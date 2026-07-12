@@ -1,3 +1,4 @@
+import { Sword } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
 import Button from './Button'
 
@@ -14,7 +15,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
 
   return (
     <div
-      className={`rounded-lg border p-4 ${
+      className={`rounded-none border-2 p-4 ${
         item.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
@@ -23,7 +24,10 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
           <h3 className="font-medium text-gray-100">{item.name}</h3>
           <p className="mt-1 text-sm text-gray-400">{item.description}</p>
           <div className="mt-2 flex items-center gap-3 text-sm">
-            <span className="text-cyber-secondary">{item.cost} ⚔️</span>
+            <span className="flex items-center gap-1 text-cyber-secondary">
+              <Sword width={16} height={16} />
+              {item.cost}
+            </span>
             {item.owned_charges > 0 && (
               <span className="text-cyber-accent">Заряды: {item.owned_charges}</span>
             )}

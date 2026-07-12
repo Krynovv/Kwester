@@ -33,7 +33,7 @@ export default function RewardForm() {
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-3 rounded-lg border border-cyber-border bg-cyber-card p-4"
+      className="space-y-3 rounded-none border-2 border-cyber-border bg-cyber-card p-4"
     >
       <h2 className="font-display text-sm text-gray-300">НОВАЯ НАГРАДА</h2>
 
@@ -42,14 +42,14 @@ export default function RewardForm() {
         placeholder="Название"
         value={title}
         onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         required
       />
       <textarea
         placeholder="Описание (необязательно)"
         value={description}
         onChange={(e) => setDescription(e.target.value)}
-        className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         rows={2}
       />
 
@@ -60,7 +60,7 @@ export default function RewardForm() {
           placeholder="Цена (валюта)"
           value={cost}
           onChange={(e) => setCost(e.target.value)}
-          className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
         <input
@@ -69,7 +69,7 @@ export default function RewardForm() {
           placeholder="Уровень открытия"
           value={unlockLevel}
           onChange={(e) => setUnlockLevel(e.target.value)}
-          className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
       </div>
 

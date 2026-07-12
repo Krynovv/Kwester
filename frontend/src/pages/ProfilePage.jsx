@@ -1,5 +1,6 @@
 import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { Coins, Sword, Heart } from 'pixelarticons/react'
 import { fetchMe } from '../api/auth'
 import { API_BASE_URL } from '../api/client'
 import { useStats } from '../hooks/useStats'
@@ -24,13 +25,13 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl space-y-8">
-      <h1 className="font-display text-2xl text-gray-100">ПРОФИЛЬ</h1>
+      <h1 className="font-display text-lg text-gray-100">ПРОФИЛЬ</h1>
 
       <div className="flex items-center gap-5">
         <button
           type="button"
           onClick={() => fileInputRef.current?.click()}
-          className="relative h-20 w-20 shrink-0 overflow-hidden rounded-full border border-cyber-primary/50 bg-cyber-muted glow-primary"
+          className="pixel-hover relative h-20 w-20 shrink-0 overflow-hidden rounded-none border-2 border-cyber-primary bg-cyber-muted pixel-shadow-primary"
           title="Загрузить аватарку"
         >
           {user?.image_file ? (
@@ -56,7 +57,7 @@ export default function ProfilePage() {
         <div>
           <p className="text-lg font-medium text-gray-100">{user?.username}</p>
           <p className="text-sm text-gray-500">{user?.email}</p>
-          <p className="mt-1 text-xs text-gray-600">
+          <p className="mt-1 text-sm text-gray-600">
             С нами с {new Date(user?.created_at).toLocaleDateString('ru-RU')}
           </p>
         </div>
@@ -67,23 +68,26 @@ export default function ProfilePage() {
         <p className="text-sm text-cyber-danger">Не удалось загрузить изображение (макс. 5MB, jpg/png/webp)</p>
       )}
 
-      <div className="flex flex-wrap gap-4 text-sm">
-        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-gray-300">
+      <div className="flex flex-wrap gap-4 text-base">
+        <span className="rounded-none border-2 border-cyber-border bg-cyber-card px-4 py-2 text-gray-300">
           Уровень персонажа: <span className="text-cyber-secondary text-glow">{characterLevel}</span>
         </span>
-        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-yellow-500">
-          {user?.currency_balance} 🪙
+        <span className="flex items-center gap-2 rounded-none border-2 border-cyber-border bg-cyber-card px-4 py-2 text-yellow-500">
+          <Coins width={18} height={18} />
+          {user?.currency_balance}
         </span>
-        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-cyber-secondary">
-          {user?.boss_currency_balance} ⚔️
+        <span className="flex items-center gap-2 rounded-none border-2 border-cyber-border bg-cyber-card px-4 py-2 text-cyber-secondary">
+          <Sword width={18} height={18} />
+          {user?.boss_currency_balance}
         </span>
-        <span className="rounded-lg border border-cyber-border bg-cyber-card px-4 py-2 text-cyber-danger">
-          {user?.current_hp} HP
+        <span className="flex items-center gap-2 rounded-none border-2 border-cyber-border bg-cyber-card px-4 py-2 text-cyber-danger">
+          <Heart width={18} height={18} />
+          {user?.current_hp}
         </span>
       </div>
 
       <div>
-        <h2 className="mb-3 font-display text-lg text-gray-100">ХАРАКТЕРИСТИКИ</h2>
+        <h2 className="mb-3 font-display text-sm text-gray-100">ХАРАКТЕРИСТИКИ</h2>
         <StatsOverview />
       </div>
     </div>

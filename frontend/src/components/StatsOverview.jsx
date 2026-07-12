@@ -1,15 +1,8 @@
 import { useEffect, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { useStats } from '../hooks/useStats'
 import { useToastStore } from '../store/toastStore'
-
-const statColors = {
-  Сила: { bar: 'bg-cyber-primary', text: 'text-cyber-primary' },
-  Ловкость: { bar: 'bg-cyber-accent', text: 'text-cyber-accent' },
-  Интелект: { bar: 'bg-cyber-secondary', text: 'text-cyber-secondary' },
-  Фокус: { bar: 'bg-cyber-cyan', text: 'text-cyber-cyan' },
-  Здоровье: { bar: 'bg-cyber-pink', text: 'text-cyber-pink' },
-}
-const defaultColor = { bar: 'bg-cyber-secondary', text: 'text-cyber-secondary' }
+import { statStyle, defaultStatStyle } from '../constants/statStyle'
 
 export default function StatsOverview() {
   const { data: stats, isLoading } = useStats()
@@ -46,30 +39,48 @@ export default function StatsOverview() {
   if (isLoading) return <p className="text-gray-400">Загрузка статов...</p>
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-x-6 gap-y-4">
       {stats?.map((stat) => {
         const progress = Math.min(100, (stat.current_xp / stat.xp_to_next_level) * 100)
-        const color = statColors[stat.name] ?? defaultColor
+        const style = statStyle[stat.name] ?? defaultStatStyle
+        const Icon = style.icon
         return (
-          <div
+          <Link
+            to={`/stats/${stat.id}`}
             key={stat.id}
-            className={`rounded-lg border border-cyber-border bg-cyber-card p-3 ${
-              leveledUpIds.includes(stat.id) ? 'animate-level-up' : ''
-            }`}
+            className={`pixel-hover block ${leveledUpIds.includes(stat.id) ? 'animate-level-up' : ''}`}
           >
-            <p className="text-sm text-gray-300">{stat.name}</p>
-            <p className={`text-xs ${color.text}`}>Ур. {stat.level}</p>
-            <div className="relative mt-2 h-2 overflow-hidden rounded-full bg-cyber-muted">
+            <div className="flex items-center">
+              {/* Icon badge — a deliberate rounded exception: your own pixel-art icon slot */}
               <div
-                className={`h-2 rounded-full ${color.bar} transition-all duration-500 ease-out`}
-                style={{ width: `${progress}%` }}
-              />
-              <div className="bar-segments" />
+                className={`relative z-10 flex h-12 w-12 shrink-0 items-center justify-center rounded-full border-2 bg-cyber-bg ${style.border}`}
+              >
+                <Icon width={22} height={22} className={style.text} />
+              </div>
+
+              {/* Pill bar, tucked under the badge so they read as one fused shape */}
+              <div
+                className={`-ml-6 flex h-8 flex-1 items-center rounded-r-full border-2 border-l-0 bg-cyber-muted py-1 pl-8 pr-3 ${style.border}`}
+              >
+                <div className="relative h-2 w-full overflow-hidden rounded-full bg-cyber-bg">
+                  <div
+                    className={`h-full ${style.bar} transition-all duration-500 ease-out`}
+                    style={{ width: `${progress}%` }}
+                  />
+                  <div className="bar-segments" />
+                </div>
+              </div>
             </div>
-            <p className="mt-1 text-right text-[10px] text-gray-500">
-              {stat.current_xp} / {stat.xp_to_next_level} XP
-            </p>
-          </div>
+
+            <div className="mt-1 flex items-center justify-between pl-1 text-xs text-gray-500">
+              <span>
+                {stat.name} · Ур. <span className={style.text}>{stat.level}</span>
+              </span>
+              <span>
+                {stat.current_xp} / {stat.xp_to_next_level} XP
+              </span>
+            </div>
+          </Link>
         )
       })}
     </div>

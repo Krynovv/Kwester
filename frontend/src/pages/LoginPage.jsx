@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import { useLogin } from '../hooks/useAuth'
 import Button from '../components/Button'
+import PasswordInput from '../components/PasswordInput'
 
 export default function LoginPage() {
   const [username, setUsername] = useState('')
@@ -21,24 +22,22 @@ export default function LoginPage() {
     <div className="flex min-h-screen items-center justify-center bg-cyber-bg">
       <form
         onSubmit={handleSubmit}
-        className="w-full max-w-sm space-y-4 rounded-lg border border-cyber-border bg-cyber-card p-8"
+        className="w-full max-w-sm space-y-4 rounded-none border-2 border-cyber-border bg-cyber-card p-8"
       >
-        <h1 className="font-display text-xl text-cyber-primary text-glow">ВХОД В KWESTER</h1>
+        <h1 className="font-display text-base text-cyber-primary text-glow">ВХОД В KWESTER</h1>
 
         <input
           type="text"
           placeholder="Имя пользователя"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-gray-100"
           required
         />
-        <input
-          type="password"
+        <PasswordInput
           placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
-          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-gray-100"
           required
         />
 

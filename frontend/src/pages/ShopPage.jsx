@@ -10,7 +10,7 @@ export default function ShopPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="font-display text-2xl text-gray-100">МАГАЗИН БОССА</h1>
+        <h1 className="font-display text-lg text-gray-100">МАГАЗИН БОССА</h1>
         <p className="mt-1 text-sm text-gray-500">
           Тратится особая валюта, заработанная за победы над боссом.
         </p>

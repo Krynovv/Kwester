@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Coins } from 'pixelarticons/react'
 import { usePurchaseReward, useDeleteReward, useUpdateReward } from '../hooks/useRewards'
 import Button from './Button'
 
@@ -42,20 +43,20 @@ export default function RewardCard({ reward, currencyBalance }) {
     return (
       <form
         onSubmit={handleSave}
-        className="space-y-2 rounded-lg border border-cyber-secondary bg-cyber-card p-4"
+        className="space-y-2 rounded-none border-2 border-cyber-secondary bg-cyber-card p-4"
       >
         <input
           type="text"
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
         <div className="flex gap-3">
           <input
@@ -63,7 +64,7 @@ export default function RewardCard({ reward, currencyBalance }) {
             min="1"
             value={cost}
             onChange={(e) => setCost(e.target.value)}
-            className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+            className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
             required
           />
           <input
@@ -71,7 +72,7 @@ export default function RewardCard({ reward, currencyBalance }) {
             min="0"
             value={unlockLevel}
             onChange={(e) => setUnlockLevel(e.target.value)}
-            className="w-1/2 rounded border border-cyber-border bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+            className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           />
         </div>
 
@@ -91,7 +92,7 @@ export default function RewardCard({ reward, currencyBalance }) {
 
   return (
     <div
-      className={`rounded-lg border p-4 ${
+      className={`rounded-none border-2 p-4 ${
         reward.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
@@ -101,7 +102,10 @@ export default function RewardCard({ reward, currencyBalance }) {
           {reward.description && (
             <p className="mt-1 text-sm text-gray-400">{reward.description}</p>
           )}
-          <p className="mt-2 text-sm text-yellow-500">{reward.cost} 🪙</p>
+          <p className="mt-2 flex items-center gap-1 text-sm text-yellow-500">
+            <Coins width={14} height={14} />
+            {reward.cost}
+          </p>
         </div>
 
         <div className="flex shrink-0 flex-col items-end gap-2">

@@ -1,9 +1,9 @@
 import { useToastStore } from '../store/toastStore'
 
 const typeStyles = {
-  success: 'border-cyber-accent text-cyber-accent glow-accent',
-  error: 'border-cyber-primary text-cyber-danger glow-primary',
-  info: 'border-cyber-secondary text-cyber-secondary glow-secondary',
+  success: 'border-cyber-accent text-cyber-accent pixel-shadow-accent',
+  error: 'border-cyber-danger text-cyber-danger pixel-shadow-danger',
+  info: 'border-cyber-secondary text-cyber-secondary pixel-shadow-secondary',
 }
 
 export default function ToastContainer() {
@@ -23,7 +23,7 @@ export default function ToastContainer() {
           onMouseLeave={() => resumeToast(toast.id)}
           onFocus={() => pauseToast(toast.id)}
           onBlur={() => resumeToast(toast.id)}
-          className={`animate-toast-in rounded border bg-cyber-card px-4 py-3 text-left font-mono text-sm ${typeStyles[toast.type] ?? typeStyles.info}`}
+          className={`animate-toast-in rounded-none border-2 bg-cyber-card px-4 py-3 text-left font-mono text-base ${typeStyles[toast.type] ?? typeStyles.info}`}
         >
           {toast.message}
         </button>
