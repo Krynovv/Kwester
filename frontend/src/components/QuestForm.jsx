@@ -1,10 +1,11 @@
 import { useState } from 'react'
-import { Clock } from 'pixelarticons/react'
 import { useCreateQuest } from '../hooks/useQuests'
 import { useStats } from '../hooks/useStats'
 import { fromDateAndTimeInputValue } from '../utils/datetime'
 import Button from './Button'
 import Select from './Select'
+import DatePicker from './DatePicker'
+import TimePicker from './TimePicker'
 
 const questTypes = [
   { value: 'once', label: 'Разовый' },
@@ -79,26 +80,8 @@ export default function QuestForm() {
         <Select value={questType} onChange={setQuestType} options={questTypes} className="w-44" />
         <Select value={statId} onChange={setStatId} options={statOptions} className="w-52" />
 
-        <input
-          type="date"
-          value={dateEnd}
-          onChange={(e) => setDateEnd(e.target.value)}
-          className="rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
-          title="Дедлайн — дата (необязательно)"
-        />
-        <div
-          className={`flex items-center gap-1 bg-cyber-muted px-2 ${!dateEnd ? 'opacity-40' : ''}`}
-        >
-          <Clock width={16} height={16} className="shrink-0 text-gray-500" />
-          <input
-            type="time"
-            value={timeEnd}
-            onChange={(e) => setTimeEnd(e.target.value)}
-            disabled={!dateEnd}
-            className="bg-transparent py-2 text-sm text-gray-100"
-            title="Дедлайн — время (необязательно, по умолчанию конец дня)"
-          />
-        </div>
+        <DatePicker value={dateEnd} onChange={setDateEnd} className="w-40" />
+        <TimePicker value={timeEnd} onChange={setTimeEnd} disabled={!dateEnd} className="w-28" />
 
         <Button type="submit" variant="primary" disabled={isPending} className="ml-auto">
           {isPending ? 'Создаём...' : 'Создать квест'}

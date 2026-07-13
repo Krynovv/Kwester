@@ -54,7 +54,7 @@ export default function Select({ value, onChange, options, className = '' }) {
         aria-expanded={open}
         onClick={() => (open ? setOpen(false) : openList())}
         onKeyDown={handleKeyDown}
-        className="flex w-full items-center justify-between bg-cyber-muted px-3 py-2 text-left text-base text-gray-100"
+        className="flex w-full items-center justify-between bg-cyber-muted px-2 py-1.5 text-left text-sm text-gray-100 sm:px-3 sm:py-2 sm:text-base"
       >
         <span className="min-w-0 truncate">{selected?.label ?? ''}</span>
         <ChevronDown width={16} height={16} className="shrink-0 text-gray-400" />
@@ -63,7 +63,7 @@ export default function Select({ value, onChange, options, className = '' }) {
       {open && (
         <ul
           role="listbox"
-          className="absolute z-40 mt-1 max-h-60 w-full overflow-auto bg-cyber-card"
+          className="absolute z-40 mt-1 max-h-48 w-full overflow-auto bg-cyber-card sm:max-h-60"
         >
           {options.map((opt, i) => (
             <li
@@ -75,7 +75,7 @@ export default function Select({ value, onChange, options, className = '' }) {
                 onChange(opt.value)
                 setOpen(false)
               }}
-              className={`cursor-pointer px-3 py-2 text-base ${
+              className={`cursor-pointer px-2 py-1.5 text-sm sm:px-3 sm:py-2 sm:text-base ${
                 i === highlighted ? 'bg-cyber-secondary text-cyber-bg' : 'text-gray-100'
               }`}
             >
