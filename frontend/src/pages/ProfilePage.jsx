@@ -1,10 +1,12 @@
 import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Coins, Sword, Heart, Zap, Logout } from 'pixelarticons/react'
+import { Coins, Sword, Heart, Zap, Logout, Package } from 'pixelarticons/react'
+import { Link } from 'react-router-dom'
 import { fetchMe } from '../api/auth'
 import { API_BASE_URL } from '../api/client'
 import { useStats } from '../hooks/useStats'
 import { useUploadAvatar } from '../hooks/useUser'
+import { useShopItems } from '../hooks/useShop'
 import { useAuthStore } from '../store/authStore'
 import StatsOverview from '../components/StatsOverview'
 import Button from '../components/Button'
@@ -14,9 +16,11 @@ export default function ProfilePage() {
   const logout = useAuthStore((state) => state.logout)
   const { data: user, isLoading } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
   const { data: stats } = useStats()
+  const { data: shopItems } = useShopItems()
   const { mutate: upload, isPending: uploading, error: uploadError } = useUploadAvatar()
 
   const characterLevel = (stats ?? []).reduce((sum, s) => sum + s.level, 0)
+  const ownedItems = (shopItems ?? []).filter((item) => item.owned_charges > 0)
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
@@ -30,13 +34,13 @@ export default function ProfilePage() {
     <div className="max-w-6xl space-y-6">
       <h1 className="font-display text-lg text-gray-100">ПРОФИЛЬ</h1>
 
-      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-6">
-        <div className="flex flex-col items-start gap-6 sm:flex-row">
+      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
+        <div className="flex flex-row items-start gap-4 sm:gap-6">
           <div className="relative shrink-0">
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}
-              className="pixel-hover relative h-36 w-36 overflow-hidden rounded-none border-2 border-cyber-primary bg-cyber-muted pixel-shadow-primary"
+              className="pixel-hover relative h-20 w-20 overflow-hidden rounded-none border-2 border-cyber-primary bg-cyber-muted pixel-shadow-primary sm:h-36 sm:w-36"
               title="Загрузить аватарку"
             >
               {user?.image_file ? (
@@ -46,13 +50,13 @@ export default function ProfilePage() {
                   className="h-full w-full object-cover"
                 />
               ) : (
-                <span className="flex h-full w-full items-center justify-center text-4xl text-gray-400">
+                <span className="flex h-full w-full items-center justify-center text-xl text-gray-400 sm:text-4xl">
                   {user?.username?.[0]?.toUpperCase()}
                 </span>
               )}
             </button>
-            <span className="absolute -bottom-3 -right-3 flex items-center gap-1 border-2 border-cyber-primary bg-cyber-bg px-2 py-1 text-sm text-cyber-primary text-glow pixel-shadow-primary">
-              <Zap width={14} height={14} />
+            <span className="absolute -bottom-2 -right-2 flex items-center gap-1 border-2 border-cyber-primary bg-cyber-bg px-1.5 py-0.5 text-xs text-cyber-primary text-glow pixel-shadow-primary sm:-bottom-3 sm:-right-3 sm:px-2 sm:py-1 sm:text-sm">
+              <Zap width={12} height={12} />
               LvL {characterLevel}
             </span>
           </div>
@@ -77,32 +81,68 @@ export default function ProfilePage() {
                 Не удалось загрузить изображение (макс. 5MB, jpg/png/webp)
               </p>
             )}
-
-            <div className="mt-4 flex flex-wrap gap-5 text-base">
-              <span className="flex items-center gap-2 rounded-none border-2 border-cyber-gold bg-cyber-bg px-4 py-2 text-cyber-gold pixel-shadow-gold">
-                <Coins width={18} height={18} />
-                {user?.currency_balance}
-              </span>
-              <span className="flex items-center gap-2 rounded-none border-2 border-cyber-secondary bg-cyber-bg px-4 py-2 text-cyber-secondary pixel-shadow-secondary">
-                <Sword width={18} height={18} />
-                {user?.boss_currency_balance}
-              </span>
-              <span className="flex items-center gap-2 rounded-none border-2 border-cyber-danger bg-cyber-bg px-4 py-2 text-cyber-danger pixel-shadow-danger">
-                <Heart width={18} height={18} />
-                {user?.current_hp}
-              </span>
-              <Button variant="ghost" onClick={logout} className="ml-auto">
-                <Logout width={18} height={18} className="mr-2 inline align-text-bottom" />
-                Выйти
-              </Button>
-            </div>
           </div>
+        </div>
+
+        <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-5 sm:text-base">
+          <div className="flex items-center gap-2 overflow-x-auto sm:gap-5">
+            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-gold bg-cyber-bg px-3 py-1.5 text-cyber-gold pixel-shadow-gold sm:px-4 sm:py-2">
+              <Coins width={16} height={16} className="sm:hidden" />
+              <Coins width={18} height={18} className="hidden sm:block" />
+              {user?.currency_balance}
+            </span>
+            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-secondary bg-cyber-bg px-3 py-1.5 text-cyber-secondary pixel-shadow-secondary sm:px-4 sm:py-2">
+              <Sword width={16} height={16} className="sm:hidden" />
+              <Sword width={18} height={18} className="hidden sm:block" />
+              {user?.boss_currency_balance}
+            </span>
+            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-danger bg-cyber-bg px-3 py-1.5 text-cyber-danger pixel-shadow-danger sm:px-4 sm:py-2">
+              <Heart width={16} height={16} className="sm:hidden" />
+              <Heart width={18} height={18} className="hidden sm:block" />
+              {user?.current_hp}
+            </span>
+          </div>
+          <Button variant="ghost" size="sm" onClick={logout} className="w-full sm:ml-auto sm:w-auto">
+            <Logout width={16} height={16} className="mr-2 inline align-text-bottom" />
+            Выйти
+          </Button>
         </div>
       </div>
 
-      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-6">
+      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
         <h2 className="mb-3 font-display text-sm text-gray-100">ХАРАКТЕРИСТИКИ</h2>
         <StatsOverview />
+      </div>
+
+      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
+        <h2 className="mb-3 flex items-center gap-2 font-display text-sm text-gray-100">
+          <Package width={18} height={18} className="text-cyber-secondary" />
+          ИНВЕНТАРЬ
+        </h2>
+        {ownedItems.length ? (
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
+            {ownedItems.map((item) => (
+              <div
+                key={item.key}
+                className="relative flex flex-col items-center gap-2 border-2 border-cyber-secondary bg-cyber-bg p-3 pixel-shadow-secondary"
+              >
+                <Sword width={28} height={28} className="text-cyber-secondary" />
+                <span className="text-center text-sm text-gray-300">{item.name}</span>
+                <span className="absolute -right-2 -top-2 border-2 border-cyber-secondary bg-cyber-card px-1.5 py-0.5 text-xs text-cyber-secondary">
+                  ×{item.owned_charges}
+                </span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p className="text-gray-500">
+            Пока пусто —{' '}
+            <Link to="/shop" className="text-cyber-secondary hover:text-glow">
+              загляните в магазин босса
+            </Link>
+            .
+          </p>
+        )}
       </div>
     </div>
   )

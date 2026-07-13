@@ -35,6 +35,24 @@ async def _get_stat_by_role(db: AsyncSession, user_id: int, role: CombatRole) ->
     )    
     return result.scalar_one_or_none()
 
+async def _calculate_projected_damage(db: AsyncSession, user_id: int, today: date) -> int:
+    strength_stat = await _get_stat_by_role(db, user_id, CombatRole.strength)
+
+    distinct_stats_result = await db.execute(
+        select(func.count(func.distinct(Quest.stat_id)))
+        .join(Stat, Stat.id == Quest.stat_id)
+        .where(
+            Quest.user_id == user_id,
+            Quest.stat_id.is_not(None),
+            Stat.is_default == True,
+            func.date(Quest.last_completed_at) == today,
+        )
+    )
+    distinct_stats = distinct_stats_result.scalar() or 0
+    strength_level = strength_stat.level if strength_stat else 0
+    return strength_level * distinct_stats
+
+
 async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     """Проверка востановление HP за сутки"""
     result = await db.execute(select(User).where(User.id == user_id). with_for_update())
@@ -82,10 +100,14 @@ async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
     now_hour = datetime.now(timezone.utc).hour
     window_open = now_hour >= FIGHT_WINDOW_START_HOUR
 
+    projected_damage = await _calculate_projected_damage(db, user_id, today)
+
     return {
         "boss_name": get_boss_name(boss.level),
         "boss_level": boss.level,
         "boss_hp": boss_hp,
+        "projected_damage": projected_damage,
+        "is_ready": projected_damage >= boss_hp,
         "pending_failures": boss.pending_failures,
         "current_hp": user.current_hp,
         "max_hp": max_hp,
@@ -119,26 +141,11 @@ async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
     user_result = await db.execute(select(User).where(User.id == user_id).with_for_update())
     user = user_result.scalar_one()
 
-    strength_stat = await _get_stat_by_role(db, user_id, CombatRole.strength)
     health_stat = await _get_stat_by_role(db, user_id, CombatRole.health)
     intellect_stat = await _get_stat_by_role(db, user_id, CombatRole.intellect)
 
-    distinct_stats_result = await db.execute(
-        select(func.count(func.distinct(Quest.stat_id)))
-        .join(Stat, Stat.id == Quest.stat_id)
-        .where(
-            Quest.user_id == user_id,
-            Quest.stat_id.is_not(None),
-            Stat.is_default == True,
-            func.date(Quest.last_completed_at) == today,
-        )
-    )
-    distinct_stats = distinct_stats_result.scalar() or 0
+    damage_dealt = await _calculate_projected_damage(db, user_id, today)
 
-    strength_level = strength_stat.level if strength_stat else 0
-    damage_dealt = strength_level * distinct_stats
-
-    
     boss_hp = calculate_boss_hp(boss.level)
     max_hp = calculate_max_hp(health_stat.level if health_stat else 0)
 

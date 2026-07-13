@@ -9,6 +9,8 @@ class BossStatus(BaseModel):
     max_hp: int
     already_fought_today: bool
     fight_window_open: bool
+    projected_damage: int
+    is_ready: bool
 
 class BossFightResult(BaseModel):
     result: str

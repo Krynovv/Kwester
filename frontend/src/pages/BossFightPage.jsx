@@ -1,5 +1,5 @@
 import { useEffect } from 'react'
-import { Skull, Heart, Clock, Zap } from 'pixelarticons/react'
+import { Skull, Heart, Clock, Zap, Check, SquareAlert } from 'pixelarticons/react'
 import { useBossStatus, useFightBoss, getNextFightTime } from '../hooks/useBoss'
 import { useCountdown, formatDuration } from '../hooks/useCountdown'
 import Button from '../components/Button'
@@ -22,6 +22,7 @@ export default function BossFightPage() {
   const canFight = boss.fight_window_open && !boss.already_fought_today
   const buttonLabel = isPending ? 'Сражаемся...' : canFight ? 'Сразиться' : formatDuration(remainingMs)
   const hpProgress = Math.min(100, (boss.current_hp / boss.max_hp) * 100)
+  const damageProgress = Math.min(100, (boss.projected_damage / boss.boss_hp) * 100)
 
   return (
     <div className="max-w-2xl space-y-8">
@@ -48,6 +49,22 @@ export default function BossFightPage() {
           <div
             className="h-full bg-cyber-danger transition-all duration-500 ease-out"
             style={{ width: `${hpProgress}%` }}
+          />
+          <div className="bar-segments" />
+        </div>
+      </div>
+
+      <div>
+        <p
+          className={`mb-1 flex items-center gap-1 text-sm ${boss.is_ready ? 'text-cyber-accent' : 'text-cyber-danger'}`}
+        >
+          {boss.is_ready ? <Check width={14} height={14} /> : <SquareAlert width={14} height={14} />}
+          Урон сегодня: {boss.projected_damage}/{boss.boss_hp} — {boss.is_ready ? 'готовы к бою' : 'не хватит урона'}
+        </p>
+        <div className="relative h-3 overflow-hidden rounded-none bg-cyber-muted">
+          <div
+            className={`h-full transition-all duration-500 ease-out ${boss.is_ready ? 'bg-cyber-accent' : 'bg-cyber-danger'}`}
+            style={{ width: `${damageProgress}%` }}
           />
           <div className="bar-segments" />
         </div>
