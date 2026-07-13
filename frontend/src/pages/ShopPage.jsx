@@ -10,17 +10,17 @@ export default function ShopPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
+      <div>
+        <div className="flex flex-wrap items-center gap-3">
           <h1 className="font-display text-lg text-gray-100">МАГАЗИН БОССА</h1>
-          <p className="mt-1 text-sm text-gray-500">
-            Тратится особая валюта, заработанная за победы над боссом.
-          </p>
+          <span className="ml-auto flex shrink-0 items-center gap-2 rounded-none bg-cyber-bg px-3 py-1.5 text-cyber-secondary">
+            <Sword width={18} height={18} />
+            {user?.boss_currency_balance ?? 0}
+          </span>
         </div>
-        <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-secondary bg-cyber-bg px-3 py-1.5 text-cyber-secondary pixel-shadow-secondary">
-          <Sword width={18} height={18} />
-          {user?.boss_currency_balance ?? 0}
-        </span>
+        <p className="mt-3 text-sm text-gray-500">
+          Тратится особая валюта, заработанная за победы над боссом.
+        </p>
       </div>
 
       {isLoading ? (
