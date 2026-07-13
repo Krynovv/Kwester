@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom'
+import { ArrowRight } from 'pixelarticons/react'
 import { useQuests } from '../hooks/useQuests'
 import { useStats } from '../hooks/useStats'
 import QuestCard from './QuestCard'
@@ -12,10 +13,14 @@ export default function ActiveQuestsPreview() {
 
   return (
     <div>
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col items-start gap-1 sm:flex-row sm:items-center sm:justify-between">
         <h2 className="font-display text-lg text-gray-100">АКТИВНЫЕ КВЕСТЫ</h2>
-        <Link to="/quests" className="text-sm text-cyber-secondary hover:text-glow">
-          Все квесты →
+        <Link
+          to="/quests"
+          className="flex shrink-0 items-center gap-1 whitespace-nowrap text-sm text-cyber-secondary hover:text-glow"
+        >
+          Все квесты
+          <ArrowRight width={14} height={14} />
         </Link>
       </div>
 

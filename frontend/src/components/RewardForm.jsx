@@ -6,7 +6,7 @@ export default function RewardForm() {
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [cost, setCost] = useState('')
-  const [unlockLevel, setUnlockLevel] = useState('0')
+  const [unlockLevel, setUnlockLevel] = useState('')
 
   const { mutate, isPending, error } = useCreateReward()
 
@@ -24,7 +24,7 @@ export default function RewardForm() {
           setTitle('')
           setDescription('')
           setCost('')
-          setUnlockLevel('0')
+          setUnlockLevel('')
         },
       }
     )
@@ -57,7 +57,7 @@ export default function RewardForm() {
         <input
           type="number"
           min="1"
-          placeholder="Цена (валюта)"
+          placeholder="Цена"
           value={cost}
           onChange={(e) => setCost(e.target.value)}
           className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
@@ -66,7 +66,7 @@ export default function RewardForm() {
         <input
           type="number"
           min="0"
-          placeholder="Уровень открытия"
+          placeholder="Уровень"
           value={unlockLevel}
           onChange={(e) => setUnlockLevel(e.target.value)}
           className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
