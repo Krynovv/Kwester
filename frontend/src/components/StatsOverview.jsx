@@ -39,7 +39,7 @@ export default function StatsOverview() {
   if (isLoading) return <p className="text-gray-400">Загрузка статов...</p>
 
   return (
-    <div className="grid grid-cols-[repeat(auto-fit,minmax(240px,1fr))] gap-x-6 gap-y-4">
+    <div className="grid grid-cols-[repeat(auto-fit,minmax(200px,1fr))] gap-x-4 gap-y-4">
       {stats?.map((stat) => {
         const progress = Math.min(100, (stat.current_xp / stat.xp_to_next_level) * 100)
         const style = statStyle[stat.name] ?? defaultStatStyle

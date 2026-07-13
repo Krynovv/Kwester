@@ -96,7 +96,7 @@ export default function RewardCard({ reward, currencyBalance }) {
         reward.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="font-medium text-gray-100">{reward.title}</h3>
           {reward.description && (
@@ -108,16 +108,27 @@ export default function RewardCard({ reward, currencyBalance }) {
           </p>
         </div>
 
-        <div className="flex shrink-0 flex-col items-end gap-2">
-          <Button variant="accent" onClick={() => purchase(reward.id)} disabled={!canBuy || purchasing}>
+        <div className="flex flex-col gap-2 sm:shrink-0 sm:items-end">
+          <Button
+            variant="accent"
+            onClick={() => purchase(reward.id)}
+            disabled={!canBuy || purchasing}
+            className="w-full sm:w-auto"
+          >
             {buttonLabel}
           </Button>
           {!reward.is_purchased && (
             <div className="flex gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setIsEditing(true)}>
+              <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => setIsEditing(true)}>
                 Изменить
               </Button>
-              <Button variant="ghost" size="sm" onClick={() => remove(reward.id)} disabled={deleting}>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="flex-1 sm:flex-none"
+                onClick={() => remove(reward.id)}
+                disabled={deleting}
+              >
                 Удалить
               </Button>
             </div>

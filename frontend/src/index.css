@@ -15,6 +15,7 @@
   --color-cyber-danger: #ff4d6d;
   --color-cyber-cyan: #00b8d9;
   --color-cyber-pink: #ff5fa8;
+  --color-cyber-gold: #facc15;
 }
 
 @utility text-glow {
@@ -39,6 +40,10 @@
 
 @utility pixel-shadow-danger {
   box-shadow: 4px 4px 0 0 var(--color-cyber-danger);
+}
+
+@utility pixel-shadow-gold {
+  box-shadow: 4px 4px 0 0 var(--color-cyber-gold);
 }
 
 @utility bar-segments {

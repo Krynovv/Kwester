@@ -1,8 +1,11 @@
 import { useParams, Link } from 'react-router-dom'
+import { InfoBox } from 'pixelarticons/react'
 import { useStats } from '../hooks/useStats'
 import { useQuests } from '../hooks/useQuests'
 import { statStyle, defaultStatStyle } from '../constants/statStyle'
+import { statInfo } from '../constants/statInfo'
 import QuestCard from '../components/QuestCard'
+import BackLink from '../components/BackLink'
 
 export default function StatDetailPage() {
   const { statId } = useParams()
@@ -18,12 +21,11 @@ export default function StatDetailPage() {
   const progress = Math.min(100, (stat.current_xp / stat.xp_to_next_level) * 100)
   const style = statStyle[stat.name] ?? defaultStatStyle
   const Icon = style.icon
+  const info = statInfo[stat.name]
 
   return (
     <div className="max-w-2xl space-y-8">
-      <Link to="/" className="text-sm text-cyber-secondary hover:text-glow">
-        ← Назад
-      </Link>
+      <BackLink to="/" />
 
       <div className="flex items-center">
         <div
@@ -50,6 +52,25 @@ export default function StatDetailPage() {
           Ур. <span className={style.text}>{stat.level}</span> · {stat.current_xp} / {stat.xp_to_next_level} XP
         </span>
       </div>
+
+      {info && (
+        <div className={`rounded-none border-2 bg-cyber-card p-4 ${style.border}`}>
+          <h2 className="mb-2 flex items-center gap-2 font-display text-xs text-gray-100">
+            <InfoBox width={16} height={16} className={style.text} />
+            ЗА ЧТО ОТВЕЧАЕТ
+          </h2>
+          <p className="text-base text-gray-400">{info.description}</p>
+          {info.implemented ? (
+            <p className="mt-2 font-mono text-sm text-gray-500">
+              Формула: <span className={style.text}>{info.formula}</span>
+            </p>
+          ) : (
+            <p className="mt-2 text-sm text-cyber-danger">
+              Пока не реализовано в коде боя — стат качается, но ни на что не влияет.
+            </p>
+          )}
+        </div>
+      )}
 
       <div>
         <h2 className="mb-3 font-display text-sm text-gray-100">СВЯЗАННЫЕ КВЕСТЫ</h2>

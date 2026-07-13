@@ -63,14 +63,14 @@ export default function QuestCard({ quest, statName }) {
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-sm text-gray-100"
           required
         />
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-sm text-gray-100"
         />
         <div className="flex flex-wrap gap-3">
           <Select value={statId} onChange={setStatId} options={statOptions} className="w-52" />
@@ -110,8 +110,8 @@ export default function QuestCard({ quest, statName }) {
 
   return (
     <div className={`rounded-none border-2 ${statusBorder[quest.status]} bg-cyber-card p-4`}>
-      <div className="flex items-start justify-between gap-4">
-        <div>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="font-sans">
           <h3 className="font-medium text-gray-100">{quest.name}</h3>
           {quest.description && (
             <p className="mt-1 text-sm text-gray-400">{quest.description}</p>
@@ -129,16 +129,26 @@ export default function QuestCard({ quest, statName }) {
           </div>
         </div>
 
-        <div className="flex shrink-0 gap-2">
+        <div className="flex flex-col gap-2 sm:shrink-0 sm:flex-row">
           {quest.status === 'active' && (
-            <Button variant="accent" onClick={() => complete(quest.id)} disabled={completing}>
+            <Button
+              variant="accent"
+              onClick={() => complete(quest.id)}
+              disabled={completing}
+              className="w-full sm:w-auto"
+            >
               Выполнить
             </Button>
           )}
-          <Button variant="ghost" onClick={() => setIsEditing(true)}>
+          <Button variant="ghost" onClick={() => setIsEditing(true)} className="w-full sm:w-auto">
             Изменить
           </Button>
-          <Button variant="ghost" onClick={() => remove(quest.id)} disabled={deleting}>
+          <Button
+            variant="ghost"
+            onClick={() => remove(quest.id)}
+            disabled={deleting}
+            className="w-full sm:w-auto"
+          >
             Удалить
           </Button>
         </div>

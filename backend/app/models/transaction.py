@@ -28,6 +28,6 @@ class TransactionLog(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
 
     user: Mapped["User"] = relationship(back_populates="transactions")
-
+    
     def __repr__(self) -> str:
         return f"<TransactionLog(id={self.id}, user_id={self.user_id}, amount={self.amount}, reason={self.reason})>"

@@ -18,10 +18,12 @@ export default function DashboardPage() {
       <StatsOverview />
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2">
+        <div className="order-2 lg:order-none lg:col-span-2">
           <ActiveQuestsPreview />
         </div>
-        <BossPanel />
+        <div className="order-1 lg:order-none">
+          <BossPanel />
+        </div>
       </div>
     </div>
   )

@@ -32,7 +32,7 @@ export default function RegisterPage() {
           placeholder="Имя пользователя"
           value={username}
           onChange={(e) => setUsername(e.target.value)}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-gray-100"
+          className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-gray-100"
           required
         />
         <input
@@ -47,6 +47,7 @@ export default function RegisterPage() {
           placeholder="Пароль"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
+          className="font-sans"
           required
         />
 
@@ -60,8 +61,8 @@ export default function RegisterPage() {
           {isPending ? 'Создаём аккаунт...' : 'Зарегистрироваться'}
         </Button>
 
-        <p className="text-sm text-gray-400">
-          Уже есть аккаунт?{' '}
+        <p className="flex items-center justify-between font-sans text-sm text-gray-400">
+          Уже есть аккаунт?
           <Link to="/login" className="text-cyber-secondary hover:text-glow">
             Войти
           </Link>

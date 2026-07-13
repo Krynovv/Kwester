@@ -3,6 +3,7 @@ import { Skull, Heart, Clock, Zap } from 'pixelarticons/react'
 import { useBossStatus, useFightBoss, getNextFightTime } from '../hooks/useBoss'
 import { useCountdown, formatDuration } from '../hooks/useCountdown'
 import Button from '../components/Button'
+import BackLink from '../components/BackLink'
 
 export default function BossFightPage() {
   const { data: boss, isLoading, refetch } = useBossStatus()
@@ -24,6 +25,8 @@ export default function BossFightPage() {
 
   return (
     <div className="max-w-2xl space-y-8">
+      <BackLink to="/" />
+
       <div className="flex items-center gap-4">
         <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-none border-2 border-cyber-primary bg-cyber-bg pixel-shadow-primary">
           <Skull width={40} height={40} className="text-cyber-primary" />

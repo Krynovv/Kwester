@@ -19,7 +19,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
         item.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
       }`}
     >
-      <div className="flex items-start justify-between gap-4">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h3 className="font-medium text-gray-100">{item.name}</h3>
           <p className="mt-1 text-sm text-gray-400">{item.description}</p>
@@ -38,7 +38,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
           variant="primary"
           onClick={() => purchase(item.key)}
           disabled={!canBuy || isPending}
-          className="shrink-0"
+          className="w-full sm:w-auto sm:shrink-0"
         >
           {buttonLabel}
         </Button>
