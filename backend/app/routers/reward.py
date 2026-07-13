@@ -78,9 +78,6 @@ async def update_reward(
     if reward is None or reward.user_id != current_user.id:
         raise HTTPException(status_code=404, detail="Reward not found")
 
-    if reward.is_purchased:
-        raise HTTPException(status_code=400, detail="Cannot edit an already purchased reward")
-
     update_data = data.model_dump(exclude_unset=True)
     for field, value in update_data.items():
         setattr(reward, field, value)

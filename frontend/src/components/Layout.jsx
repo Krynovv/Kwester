@@ -17,7 +17,7 @@ export default function Layout() {
     <div className="min-h-screen bg-cyber-bg text-gray-100">
       <header className="flex items-center justify-between gap-2 border-b-2 border-cyber-border bg-cyber-card px-3 py-3 sm:px-6">
         <nav className="flex min-w-0 items-center gap-3 overflow-x-auto sm:gap-5">
-          <span className="pixel-hover shrink-0 font-display text-sm text-cyber-primary text-glow">
+          <span className="shrink-0 font-display text-sm text-cyber-primary text-glow">
             <span className="hidden sm:inline">KWESTER</span>
             <span className="sm:hidden">W</span>
           </span>

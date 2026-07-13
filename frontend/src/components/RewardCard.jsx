@@ -9,18 +9,20 @@ export default function RewardCard({ reward, currencyBalance }) {
   const [description, setDescription] = useState(reward.description ?? '')
   const [cost, setCost] = useState(String(reward.cost))
   const [unlockLevel, setUnlockLevel] = useState(String(reward.unlock_level))
+  const [repeatable, setRepeatable] = useState(reward.repeatable)
 
   const { mutate: purchase, isPending: purchasing } = usePurchaseReward()
   const { mutate: remove, isPending: deleting } = useDeleteReward()
   const { mutate: update, isPending: updating, error: updateError } = useUpdateReward()
 
   const canAfford = currencyBalance >= reward.cost
-  const canBuy = reward.is_unlocked && !reward.is_purchased && canAfford
+  const locked = reward.is_purchased && !reward.repeatable
+  const canBuy = reward.is_unlocked && !locked && canAfford
 
-  let buttonLabel = 'Купить'
+  let buttonLabel = reward.repeatable && reward.purchase_count > 0 ? 'Купить ещё' : 'Купить'
   if (purchasing) buttonLabel = 'Покупаем...'
-  else if (reward.is_purchased) buttonLabel = 'Куплено'
   else if (!reward.is_unlocked) buttonLabel = `Откроется на ${reward.unlock_level} ур.`
+  else if (locked) buttonLabel = 'Куплено'
   else if (!canAfford) buttonLabel = 'Не хватает валюты'
 
   const handleSave = (e) => {
@@ -33,6 +35,7 @@ export default function RewardCard({ reward, currencyBalance }) {
           description: description || null,
           cost: Number(cost),
           unlock_level: Number(unlockLevel) || 0,
+          repeatable,
         },
       },
       { onSuccess: () => setIsEditing(false) }
@@ -76,6 +79,16 @@ export default function RewardCard({ reward, currencyBalance }) {
           />
         </div>
 
+        <label className="flex items-center gap-2 text-sm text-gray-300">
+          <input
+            type="checkbox"
+            checked={repeatable}
+            onChange={(e) => setRepeatable(e.target.checked)}
+            className="h-4 w-4 shrink-0 rounded-none border-2 border-cyber-border bg-cyber-muted accent-cyber-secondary"
+          />
+          Можно покупать многократно
+        </label>
+
         {updateError && <p className="text-sm text-cyber-danger">Не удалось сохранить</p>}
 
         <div className="flex gap-2">
@@ -102,9 +115,14 @@ export default function RewardCard({ reward, currencyBalance }) {
           {reward.description && (
             <p className="mt-1 text-sm text-gray-400">{reward.description}</p>
           )}
-          <p className="mt-2 flex items-center gap-1 text-sm text-yellow-500">
-            <Coins width={14} height={14} />
-            {reward.cost}
+          <p className="mt-2 flex items-center gap-2 text-sm text-yellow-500">
+            <span className="flex items-center gap-1">
+              <Coins width={14} height={14} />
+              {reward.cost}
+            </span>
+            {reward.repeatable && reward.purchase_count > 0 && (
+              <span className="text-gray-500">· куплено {reward.purchase_count}×</span>
+            )}
           </p>
         </div>
 
@@ -117,22 +135,20 @@ export default function RewardCard({ reward, currencyBalance }) {
           >
             {buttonLabel}
           </Button>
-          {!reward.is_purchased && (
-            <div className="flex gap-2">
-              <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => setIsEditing(true)}>
-                Изменить
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="flex-1 sm:flex-none"
-                onClick={() => remove(reward.id)}
-                disabled={deleting}
-              >
-                Удалить
-              </Button>
-            </div>
-          )}
+          <div className="flex gap-2">
+            <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => setIsEditing(true)}>
+              Изменить
+            </Button>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="flex-1 sm:flex-none"
+              onClick={() => remove(reward.id)}
+              disabled={deleting}
+            >
+              Удалить
+            </Button>
+          </div>
         </div>
       </div>
     </div>

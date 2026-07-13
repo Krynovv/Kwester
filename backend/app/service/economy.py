@@ -13,7 +13,7 @@ async def purchase_reward(db: AsyncSession, user_id:int, reward_id:int) -> Rewar
     if reward is None or reward.user_id != user_id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Reward not found")
 
-    if reward.is_purchased:
+    if reward.is_purchased and not reward.repeatable:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Reward already purchased")
 
     character_level = await get_character_level(db, user_id)
@@ -30,6 +30,7 @@ async def purchase_reward(db: AsyncSession, user_id:int, reward_id:int) -> Rewar
 
     user.currency_balance -= reward.cost
     reward.is_purchased = True
+    reward.purchase_count += 1
 
     db.add(TransactionLog(
         user_id=user.id,

@@ -7,6 +7,7 @@ export default function RewardForm() {
   const [description, setDescription] = useState('')
   const [cost, setCost] = useState('')
   const [unlockLevel, setUnlockLevel] = useState('')
+  const [repeatable, setRepeatable] = useState(false)
 
   const { mutate, isPending, error } = useCreateReward()
 
@@ -18,6 +19,7 @@ export default function RewardForm() {
         description: description || null,
         cost: Number(cost),
         unlock_level: Number(unlockLevel) || 0,
+        repeatable,
       },
       {
         onSuccess: () => {
@@ -25,6 +27,7 @@ export default function RewardForm() {
           setDescription('')
           setCost('')
           setUnlockLevel('')
+          setRepeatable(false)
         },
       }
     )
@@ -72,6 +75,16 @@ export default function RewardForm() {
           className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
         />
       </div>
+
+      <label className="flex items-center gap-2 text-sm text-gray-300">
+        <input
+          type="checkbox"
+          checked={repeatable}
+          onChange={(e) => setRepeatable(e.target.checked)}
+          className="h-4 w-4 shrink-0 rounded-none border-2 border-cyber-border bg-cyber-muted accent-cyber-secondary"
+        />
+        Можно покупать многократно
+      </label>
 
       {error && <p className="text-sm text-cyber-danger">Не удалось создать награду</p>}
 

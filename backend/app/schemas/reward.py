@@ -5,6 +5,7 @@ class RewardBase(BaseModel):
     description: str | None = None
     cost: int = Field(gt=0)
     unlock_level: int = Field(default=0, ge=0)
+    repeatable: bool = False
 
 class RewardCreate(RewardBase):
     pass
@@ -14,6 +15,7 @@ class RewardUpdate(BaseModel):
     description: str | None = None
     cost: int | None = Field(default=None, gt=0)
     unlock_level: int | None = Field(default=None, ge=0)
+    repeatable: bool | None = None
 
 class RewardRead(RewardBase):
     model_config = ConfigDict(from_attributes=True)
@@ -21,4 +23,5 @@ class RewardRead(RewardBase):
     id: int
     user_id: int
     is_purchased: bool
+    purchase_count: int
     is_unlocked: bool = False
