@@ -1,8 +1,7 @@
 # Kwester
 это геймефицированный трекер задач и привычек в стиле RPG. Выполняешь квесты - получаешь опыт и игровую валюту, прокачиваешь характеристики. За полученные награды можешь купить игровые предметы и пойти одалеть босса. 
 
-### Заходи и играй
-[![Kwester](https://img.shields.io/badge/Enter_the_Realm-Kwester-black?style=for-the-badge)](https://Kwester.quest)
+[![Kwester](https://img.shields.io/badge/Заходи_и_играй-Kwester-black?style=for-the-badge)](https://Kwester.quest)
 
 ## Идея
 + Характеристики персонажа: Сила, Ловкость, Интелект, Фокус, Здоровье
