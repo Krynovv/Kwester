@@ -15,7 +15,11 @@ class UserUpdate(BaseModel):
 
 class Token(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str
+
+class RefreshRequest(BaseModel):
+    refresh_token: str
 
 class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
