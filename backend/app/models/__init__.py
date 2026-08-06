@@ -6,4 +6,6 @@ from .user import User
 from .reward import Reward
 from .transaction import TransactionLog
 from .boss import Boss
-from .boss_fight import BossFight
+from .boss_fight import (
+    BossFight, BossFightRound, FightStatus, FightActor, PlayerActionType,
+)

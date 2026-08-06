@@ -8,7 +8,7 @@ from ..models.stat import Stat
 from ..models.user import User
 from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
-from ..core.constant import EXHAUSTED_REWARD_MULTIPLIER
+from ..core.constant import EXHAUSTED_REWARD_MULTIPLIER, STAT_XP_GROWTH
 
 async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest:
     quest = await db.get(Quest, quest_id)
@@ -45,7 +45,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
             while stat.current_xp >= stat.xp_to_next_level:
                 stat.current_xp -= stat.xp_to_next_level
                 stat.level += 1
-                stat.xp_to_next_level = int(stat.xp_to_next_level * 1.5)
+                stat.xp_to_next_level = int(stat.xp_to_next_level * STAT_XP_GROWTH)
 
     quest.last_completed_at = datetime.now(timezone.utc)
 

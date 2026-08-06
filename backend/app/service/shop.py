@@ -2,7 +2,7 @@ from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.constant import SHOP_ITEMS
+from ..core.constant_shop import SHOP_ITEMS
 from ..models.user import User
 from ..models.stat import Stat, CombatRole
 from ..models.transaction import TransactionLog, TransactionReason

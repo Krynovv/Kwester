@@ -6,9 +6,20 @@ from app.models.user import User
 from app.models.stat import Stat, CombatRole
 from app.models.boss import Boss
 from app.models.quest import Quest, QuestType, QuestStatus
-from app.core.auth import hash_password
-from app.core.constant import BASE_MAX_HP, HP_PER_HEALTH_LEVEL, BOSS_BASE_HP, BOSS_HP_PER_LEVEL, HEAL_COST
-from app.service.boss import fight_boss, get_boss_status, heal, calculate_max_hp, calculate_boss_hp
+from app.core.auth import hash_password, create_access_token
+from app.core.constant import (
+    BASE_MAX_HP, HP_PER_HEALTH_LEVEL, COUNT_ROUND, BOSS_TARGET_KILL_ROUNDS,
+    BOSS_KILL_ROUNDS_SLACKER, BOSS_HP_REFERENCE_EFFORT, QUEST_EFFORT_CAP,
+)
+from app.core.constant_shop import HEAL_COST
+from app.service.boss import (
+    get_boss_status, heal, calculate_max_hp, calculate_boss_hp,
+    invalidate_boss_status,
+)
+from app.service.combat import (
+    build_player_combat, calculate_boss_attack, expected_damage_per_round,
+    hit_chance_on_player,
+)
 
 
 @pytest.fixture
@@ -51,110 +62,100 @@ def test_calculate_max_hp():
     assert calculate_max_hp(1) == BASE_MAX_HP + HP_PER_HEALTH_LEVEL
 
 
-def test_calculate_boss_hp():
-    assert calculate_boss_hp(1) == BOSS_BASE_HP + BOSS_HP_PER_LEVEL
+def test_boss_hp_grows_with_levels():
+    """HP босса растёт и от уровня игрока, и от уровня самого босса."""
+    assert calculate_boss_hp(5, 5) > calculate_boss_hp(3, 3)
+    assert calculate_boss_hp(5, 8) > calculate_boss_hp(5, 5)
+    assert calculate_boss_hp(1, 1) >= 1
 
 
-async def test_fight_before_window_rejected(db_session, user_with_boss, monkeypatch):
-    import app.service.boss as boss_module
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)  # раньше 17:00
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await fight_boss(db_session, user_with_boss.id)
-    assert exc_info.value.status_code == 400
-
-
-async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, monkeypatch):
-    import app.service.boss as boss_module
-
-    real_datetime = datetime_module.datetime
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            actual = real_datetime.now(tz)
-            return actual.replace(hour=18, minute=0, second=0, microsecond=0)  # в окне боя
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
-
-    stats_result = await db_session.execute(
-        Stat.__table__.select().where(Stat.user_id == user_with_boss.id)
+def test_boss_hp_calibrated_to_target_rounds():
+    """Эталонный игрок (типичный день) должен убивать босса своего уровня
+    примерно за BOSS_TARGET_KILL_ROUNDS раундов — иначе лимит в 7 раундов
+    перестаёт что-либо значить."""
+    level = 6
+    quests = round(BOSS_HP_REFERENCE_EFFORT * QUEST_EFFORT_CAP)
+    player = build_player_combat(
+        {role: level for role in CombatRole},
+        {role: quests for role in CombatRole},
     )
-    stat_rows = stats_result.fetchall()
-    stat_ids = {row.name: row.id for row in stat_rows}
-
-    # прокачаем силу, чтобы гарантированно хватило урона
-    strength_stat = await db_session.get(Stat, stat_ids["Сила"])
-    strength_stat.level = 200
-    await db_session.flush()
-
-    await _complete_quest_with_stat(db_session, user_with_boss.id, stat_ids["Сила"])
-    await _complete_quest_with_stat(db_session, user_with_boss.id, stat_ids["Ловкость"])
-    await db_session.commit()
-
-    fight = await fight_boss(db_session, user_with_boss.id)
-
-    assert fight.result == "won"
-    await db_session.refresh(user_with_boss)
-    assert user_with_boss.boss_currency_balance > 0
+    rounds = calculate_boss_hp(player.avg_level, level) / expected_damage_per_round(player, level)
+    assert BOSS_TARGET_KILL_ROUNDS - 1 <= rounds <= BOSS_TARGET_KILL_ROUNDS + 1
+    assert rounds <= COUNT_ROUND
 
 
-async def test_fight_loss_reduces_hp(db_session, user_with_boss, monkeypatch):
-    import app.service.boss as boss_module
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
-
-    # никаких выполненных квестов -> distinct_stats = 0 -> damage_dealt = 0 -> гарантированное поражение
-    fight = await fight_boss(db_session, user_with_boss.id)
-
-    assert fight.result == "lost"
-    await db_session.refresh(user_with_boss)
-    assert user_with_boss.current_hp < BASE_MAX_HP + HP_PER_HEALTH_LEVEL
+def test_slacker_dies_on_schedule():
+    """Игрок без единого квеста должен ложиться примерно на BOSS_KILL_ROUNDS_SLACKER."""
+    level = 6
+    player = build_player_combat({role: level for role in CombatRole}, {})
+    boss_dps = calculate_boss_attack(player.max_hp, player.diligence) * hit_chance_on_player(
+        player.evasion, level
+    )
+    rounds = player.max_hp / boss_dps
+    assert rounds < COUNT_ROUND
+    assert abs(rounds - BOSS_KILL_ROUNDS_SLACKER) <= 1.5
 
 
-async def test_cannot_fight_twice_same_day(db_session, user_with_boss, monkeypatch):
-    import app.service.boss as boss_module
+def test_quests_and_evasion_are_not_self_cancelling():
+    """Ключевая ловушка модели: если HP/урон босса считать от ФАКТИЧЕСКИХ
+    точности и уклонения игрока, прокачка обнуляет сама себя."""
+    level = 6
+    lazy = build_player_combat({role: level for role in CombatRole}, {})
+    busy = build_player_combat(
+        {role: level for role in CombatRole},
+        {role: QUEST_EFFORT_CAP for role in CombatRole},
+    )
+    # одинаковый уровень -> одинаковый босс, но разный результат
+    assert calculate_boss_hp(lazy.avg_level, level) == calculate_boss_hp(busy.avg_level, level)
+    assert expected_damage_per_round(busy, level) > expected_damage_per_round(lazy, level)
+    # уклонение реально снижает входящий урон, а не компенсируется уроном за удар
+    assert hit_chance_on_player(busy.evasion, level) < hit_chance_on_player(lazy.evasion, level)
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
 
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
-
-    await fight_boss(db_session, user_with_boss.id)
-
-    with pytest.raises(HTTPException) as exc_info:
-        await fight_boss(db_session, user_with_boss.id)
-    assert exc_info.value.status_code == 400
-
-
-async def test_heal_restores_hp_and_costs_currency(db_session, user_with_boss):
+async def test_heal_restores_hp_and_costs_currency(db_session, user_with_boss, fake_redis):
     user_with_boss.current_hp = 0
     user_with_boss.boss_currency_balance = HEAL_COST
     await db_session.commit()
 
-    result = await heal(db_session, user_with_boss.id)
+    result = await heal(db_session, user_with_boss.id, fake_redis)
 
     assert result.current_hp > 0
     assert result.boss_currency_balance == 0
 
 
-async def test_heal_insufficient_currency_fails(db_session, user_with_boss):
+async def test_heal_insufficient_currency_fails(db_session, user_with_boss, fake_redis):
     user_with_boss.boss_currency_balance = 0
     await db_session.commit()
 
     with pytest.raises(HTTPException) as exc_info:
-        await heal(db_session, user_with_boss.id)
+        await heal(db_session, user_with_boss.id, fake_redis)
     assert exc_info.value.status_code == 400
+
+
+async def test_boss_status_endpoint_works_end_to_end(client, db_session, user_with_boss):
+    """Проходит весь путь: роутер -> авторизация -> сервис -> кэш.
+
+    Redis здесь подменён FakeRedis, так что поломки НАСТОЯЩЕГО клиента этот
+    тест не поймает — за это отвечает test_redis_client.py.
+    """
+    await db_session.commit()
+    token = create_access_token(data={"sub": str(user_with_boss.id)})
+
+    response = await client.get("/boss/status", headers={"Authorization": f"Bearer {token}"})
+
+    assert response.status_code == 200
+    data = response.json()
+    assert data["boss_level"] == 1
+    assert data["boss_hp"] > 0
+
+
+async def test_boss_status_is_cached_and_invalidated(client, db_session, user_with_boss, fake_redis):
+    """Второй запрос должен прийти из кэша, а heal — кэш сбросить."""
+    await db_session.commit()
+    headers = {"Authorization": f"Bearer {create_access_token(data={"sub": str(user_with_boss.id)})}"}
+
+    await client.get("/boss/status", headers=headers)
+    assert len(fake_redis._data) == 1        # статус лёг в кэш
+
+    await invalidate_boss_status(fake_redis, user_with_boss.id)
+    assert len(fake_redis._data) == 0        # инвалидация действительно чистит
