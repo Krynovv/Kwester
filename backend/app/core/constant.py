@@ -47,6 +47,7 @@ WIN_BASE_XP = 50
 HEAL_COST = 20
 HEAL_PERCENT = 0.5
 
+BOSS_STATUS_TTL = 30 # Время актуальности статуса для Redis
 FIGHT_WINDOW_START_HOUR = 17
 
 SHOP_ITEMS = {

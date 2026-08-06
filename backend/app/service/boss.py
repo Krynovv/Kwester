@@ -1,7 +1,9 @@
+import json
 from datetime import date, datetime, timezone
 from fastapi import HTTPException, status
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
+from redis.asyncio import Redis
 
 from ..models.user import User
 from ..models.boss import Boss
@@ -15,7 +17,7 @@ from ..core.constant import (
     BOSS_BASE_HP, BOSS_HP_PER_LEVEL, BOSS_TIERS, get_boss_name,
     HP_REGEN_PERCENT, EXHAUSTED_REWARD_MULTIPLIER,
     WIN_BASE_CURRENCY, WIN_CURRENCY_PER_BOSS_LEVEL, WIN_BASE_XP,
-    HEAL_COST, HEAL_PERCENT, FIGHT_WINDOW_START_HOUR,
+    HEAL_COST, HEAL_PERCENT, FIGHT_WINDOW_START_HOUR, BOSS_STATUS_TTL
 )
 
 def calculate_max_hp(health_level: int) -> int:
@@ -78,8 +80,19 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     user.hp_regen_date = today
     await db.commit()
 
-async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
+def _boss_cache_key(user_id: int) -> str:
+    return f"boss:status:{user_id}"
+
+async def invalidate_boss_status(redis: Redis, user_id: int) -> None:
+    await redis.delete(_boss_cache_key(user_id))
+
+async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
     await ensure_hp_regen(db, user_id)
+    
+    cache_key = _boss_cache_key(user_id)
+    cached = await redis.get(cache_key)
+    if cached is not None:
+        return json.loads(cached)
 
     boss_result = await db.execute(select(Boss).where(Boss.user_id == user_id))
     boss = boss_result.scalar_one()
@@ -102,7 +115,7 @@ async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
 
     projected_damage = await _calculate_projected_damage(db, user_id, today)
 
-    return {
+    result = {
         "boss_name": get_boss_name(boss.level),
         "boss_level": boss.level,
         "boss_hp": boss_hp,
@@ -115,8 +128,11 @@ async def get_boss_status(db: AsyncSession, user_id: int) -> dict:
         "fight_window_open": window_open,
     }
 
+    await redis.set(cache_key, json.dumps(result), ex=BOSS_STATUS_TTL)
+    return result
 
-async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
+
+async def fight_boss(db: AsyncSession, user_id: int, redis: Redis) -> BossFight:
     await ensure_hp_regen(db, user_id)
 
     now = datetime.now(timezone.utc)
@@ -195,10 +211,11 @@ async def fight_boss(db: AsyncSession, user_id: int) -> BossFight:
 
     await db.commit()
     await db.refresh(fight)
+    await invalidate_boss_status(redis, user_id)
     return fight
 
 
-async def heal(db: AsyncSession, user_id: int) -> User:
+async def heal(db: AsyncSession, user_id: int, redis: Redis) -> User:
     result = await db.execute(select(User).where(User.id == user_id).with_for_update())
     user = result.scalar_one()
 
@@ -213,4 +230,5 @@ async def heal(db: AsyncSession, user_id: int) -> User:
 
     await db.commit()
     await db.refresh(user)
+    await invalidate_boss_status(redis, user_id)
     return user

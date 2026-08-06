@@ -7,7 +7,7 @@ class Settings(BaseSettings):
     debug: bool = True
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/qwester"
     test_database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/qwester_test"
-
+    redis_url: str = "redis://localhost:6379/0"
 
     cors_origins: list[str] = [
             "http://localhost:5173",
