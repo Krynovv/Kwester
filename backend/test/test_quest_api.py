@@ -78,6 +78,21 @@ async def test_clearing_schedule_clears_checked_until(client, auth_headers, db_s
     assert quest.streak_checked_until is None
 
 
+async def test_quest_read_exposes_last_completed_at(client, auth_headers):
+    """Без этого поля QuestCard не может погасить «Выполнить» у привычки,
+    уже закрытой сегодня, и пользователь ловит 400 по нажатию."""
+    created = await client.post("/quest", headers=auth_headers, json={
+        "name": "зал",
+        "quest_type": "habit",
+        "scheduled_days": [0, 1, 2, 3, 4, 5, 6],
+    })
+    quest_id = created.json()["id"]
+    assert created.json()["last_completed_at"] is None
+
+    completed = await client.post(f"/quest/{quest_id}/complete", headers=auth_headers)
+    assert completed.json()["last_completed_at"] is not None
+
+
 async def test_schedule_rejected_for_non_habit(client, auth_headers):
     response = await client.post("/quest", headers=auth_headers, json={
         "name": "разовый",

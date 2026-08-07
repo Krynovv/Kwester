@@ -67,7 +67,7 @@ class QuestUpdate(BaseModel):
 class QuestRead(QuestBase):
     model_config = ConfigDict(from_attributes=True)
 
-    id: int 
+    id: int
     user_id: int
     date_start: datetime
     status: QuestStatus
@@ -75,3 +75,5 @@ class QuestRead(QuestBase):
     reward_xp: int
     current_streak: int
     best_streak: int
+    # Нужен фронту, чтобы гасить «Выполнить» у привычки, уже закрытой сегодня.
+    last_completed_at: datetime | None = None
