@@ -56,7 +56,7 @@ def test_calculate_boss_hp():
     assert calculate_boss_hp(1) == BOSS_BASE_HP + BOSS_HP_PER_LEVEL
 
 
-async def test_fight_before_window_rejected(db_session, user_with_boss, monkeypatch):
+async def test_fight_before_window_rejected(db_session, user_with_boss, fake_redis, monkeypatch):
     import app.service.boss as boss_module
 
     class FakeDatetime(datetime):
@@ -67,11 +67,11 @@ async def test_fight_before_window_rejected(db_session, user_with_boss, monkeypa
     monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
 
     with pytest.raises(HTTPException) as exc_info:
-        await fight_boss(db_session, user_with_boss.id)
+        await fight_boss(db_session, user_with_boss.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 
-async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, monkeypatch):
+async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, fake_redis, monkeypatch):
     import app.service.boss as boss_module
 
     real_datetime = datetime_module.datetime
@@ -99,14 +99,14 @@ async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, monk
     await _complete_quest_with_stat(db_session, user_with_boss.id, stat_ids["Ловкость"])
     await db_session.commit()
 
-    fight = await fight_boss(db_session, user_with_boss.id)
+    fight = await fight_boss(db_session, user_with_boss.id, fake_redis)
 
     assert fight.result == "won"
     await db_session.refresh(user_with_boss)
     assert user_with_boss.boss_currency_balance > 0
 
 
-async def test_fight_loss_reduces_hp(db_session, user_with_boss, monkeypatch):
+async def test_fight_loss_reduces_hp(db_session, user_with_boss, fake_redis, monkeypatch):
     import app.service.boss as boss_module
 
     class FakeDatetime(datetime):
@@ -117,14 +117,14 @@ async def test_fight_loss_reduces_hp(db_session, user_with_boss, monkeypatch):
     monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
 
     # никаких выполненных квестов -> distinct_stats = 0 -> damage_dealt = 0 -> гарантированное поражение
-    fight = await fight_boss(db_session, user_with_boss.id)
+    fight = await fight_boss(db_session, user_with_boss.id, fake_redis)
 
     assert fight.result == "lost"
     await db_session.refresh(user_with_boss)
     assert user_with_boss.current_hp < BASE_MAX_HP + HP_PER_HEALTH_LEVEL
 
 
-async def test_cannot_fight_twice_same_day(db_session, user_with_boss, monkeypatch):
+async def test_cannot_fight_twice_same_day(db_session, user_with_boss, fake_redis, monkeypatch):
     import app.service.boss as boss_module
 
     class FakeDatetime(datetime):
@@ -134,30 +134,30 @@ async def test_cannot_fight_twice_same_day(db_session, user_with_boss, monkeypat
 
     monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
 
-    await fight_boss(db_session, user_with_boss.id)
+    await fight_boss(db_session, user_with_boss.id, fake_redis)
 
     with pytest.raises(HTTPException) as exc_info:
-        await fight_boss(db_session, user_with_boss.id)
+        await fight_boss(db_session, user_with_boss.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 
-async def test_heal_restores_hp_and_costs_currency(db_session, user_with_boss):
+async def test_heal_restores_hp_and_costs_currency(db_session, user_with_boss, fake_redis):
     user_with_boss.current_hp = 0
     user_with_boss.boss_currency_balance = HEAL_COST
     await db_session.commit()
 
-    result = await heal(db_session, user_with_boss.id)
+    result = await heal(db_session, user_with_boss.id, fake_redis)
 
     assert result.current_hp > 0
     assert result.boss_currency_balance == 0
 
 
-async def test_heal_insufficient_currency_fails(db_session, user_with_boss):
+async def test_heal_insufficient_currency_fails(db_session, user_with_boss, fake_redis):
     user_with_boss.boss_currency_balance = 0
     await db_session.commit()
 
     with pytest.raises(HTTPException) as exc_info:
-        await heal(db_session, user_with_boss.id)
+        await heal(db_session, user_with_boss.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 

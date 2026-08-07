@@ -1,5 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -8,6 +9,7 @@ from ..models.stat import Stat
 from ..models.user import User
 from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
+from .boss import invalidate_boss_status
 from ..core.constant import (
     EXHAUSTED_REWARD_MULTIPLIER,
     OFF_SCHEDULE_HP_PENALTY,
@@ -45,7 +47,7 @@ async def _penalize_boss(db: AsyncSession, user_id: int, amount: int) -> None:
         boss.pending_failures += amount
 
 
-async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest:
+async def complete_quest(db: AsyncSession, user_id: int, quest_id: int, redis: Redis) -> Quest:
     quest = await db.get(Quest, quest_id)
 
     if quest is None or quest.user_id != user_id:
@@ -121,6 +123,9 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
 
     await db.commit()
     await db.refresh(quest)
+    # Квест мог задеть stat_id/stat_id_2 и last_completed_at — оба входят в
+    # projected_damage закэшированного статуса босса.
+    await invalidate_boss_status(redis, user_id)
     return quest
 
 
@@ -160,7 +165,7 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
     if changed:
         await db.commit()
 
-async def process_scheduled_habits(db: AsyncSession, user_id: int) -> None:
+async def process_scheduled_habits(db: AsyncSession, user_id: int, redis: Redis) -> None:
     """Привычки с расписанием (scheduled_days): пропущенный день расписания
     считается провалом — бьёт по боссу и сбрасывает текущую серию (streak).
     Проверяется лениво при каждом GET /quest, как и mark_overdue_quest_failed."""
@@ -192,8 +197,10 @@ async def process_scheduled_habits(db: AsyncSession, user_id: int) -> None:
 
     if changed:
         await db.commit()
+        # pending_failures бьёт по закэшированному статусу босса, так же как в complete_quest.
+        await invalidate_boss_status(redis, user_id)
 
-async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
+async def mark_overdue_quest_failed(db: AsyncSession, user_id: int, redis: Redis) -> None:
     now = datetime.now(timezone.utc)
 
     result = await db.execute(
@@ -202,7 +209,7 @@ async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
             Quest.status == QuestStatus.active,
             Quest.date_end.is_not(None),
             Quest.date_end < now,
-        )        
+        )
     )
     overdue_quests = result.scalars().all()
 
@@ -215,3 +222,4 @@ async def mark_overdue_quest_failed(db: AsyncSession, user_id: int) -> None:
             boss.pending_failures += len(overdue_quests)
 
         await db.commit()
+        await invalidate_boss_status(redis, user_id)

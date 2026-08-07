@@ -2,11 +2,13 @@ from datetime import datetime, timezone
 
 from app.models import reward
 from fastapi import APIRouter, Depends, HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 
 from ..core.database import get_db
 from ..core.deps import get_current_user
+from ..core.redis import get_redis
 from ..models.user import User
 from ..models.tag import Tag
 from ..models.quest import Quest, QuestType
@@ -35,10 +37,11 @@ async def _validate_stat(db: AsyncSession, stat_id: int | None, user_id: int) ->
 async def list_quest(
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
 ):
     await refresh_recurring_quests(db, current_user.id)
-    await process_scheduled_habits(db, current_user.id)
-    await mark_overdue_quest_failed(db, current_user.id)
+    await process_scheduled_habits(db, current_user.id, redis)
+    await mark_overdue_quest_failed(db, current_user.id, redis)
 
     result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
     return result.scalars().all()
@@ -89,8 +92,9 @@ async def complete_quest_endpoint(
     quest_id: int,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+    redis: Redis = Depends(get_redis),
 ):
-    return await complete_quest(db, current_user.id, quest_id)
+    return await complete_quest(db, current_user.id, quest_id, redis)
 
 @router.patch("/{quest_id}", response_model=QuestRead)
 async def update_quest(
