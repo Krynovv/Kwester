@@ -1,11 +1,19 @@
 import pytest
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from sqlalchemy import select
 
 from app.models.user import User
 from app.models.quest import Quest, QuestType, QuestStatus
 from app.models.stat import Stat
+from app.models.boss import Boss
 from app.core.auth import hash_password
-from app.service.quest import complete_quest, refresh_recurring_quests, mark_overdue_quest_failed
+from app.service import quest as quest_module
+from app.service.quest import (
+    complete_quest,
+    refresh_recurring_quests,
+    mark_overdue_quest_failed,
+    process_scheduled_habits,
+)
 from fastapi import HTTPException
 
 
@@ -163,3 +171,148 @@ async def test_quest_without_deadline_not_touched(db_session, user):
 
     await db_session.refresh(quest)
     assert quest.status == QuestStatus.active
+
+
+async def test_complete_quest_splits_xp_between_two_stats(db_session, user):
+    stat_a = Stat(user_id=user.id, name="Сила", xp_to_next_level=100)
+    stat_b = Stat(user_id=user.id, name="Здоровье", xp_to_next_level=100)
+    db_session.add_all([stat_a, stat_b])
+    await db_session.flush()
+
+    quest = Quest(
+        user_id=user.id,
+        stat_id=stat_a.id,
+        stat_id_2=stat_b.id,
+        name="зал",
+        reward_currency=0,
+        reward_xp=40,
+        quest_type=QuestType.once,
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    await complete_quest(db_session, user.id, quest.id)
+
+    await db_session.refresh(stat_a)
+    await db_session.refresh(stat_b)
+    assert stat_a.current_xp == 20
+    assert stat_b.current_xp == 20
+
+
+async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, monkeypatch):
+    quest = Quest(
+        user_id=user.id,
+        name="зал пн/ср/пт",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 2, 4],
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),  # понедельник
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await complete_quest(db_session, user.id, quest.id)
+
+    with pytest.raises(HTTPException) as exc_info:
+        await complete_quest(db_session, user.id, quest.id)
+    assert exc_info.value.status_code == 400
+
+
+async def test_scheduled_habit_streak_increments_without_gap(db_session, user, monkeypatch):
+    quest = Quest(
+        user_id=user.id,
+        name="зал",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 2, 4],  # пн/ср/пт
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+        last_completed_at=datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc),  # выполнено в пн
+        current_streak=1,
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc)  # среда — следующий день по расписанию
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    result = await complete_quest(db_session, user.id, quest.id)
+
+    assert result.current_streak == 2
+    assert result.best_streak == 2
+
+
+async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db_session, user, monkeypatch):
+    db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
+
+    quest = Quest(
+        user_id=user.id,
+        name="зал",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 2, 4],  # пн/ср/пт
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+        last_completed_at=datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc),  # выполнено в пн
+        current_streak=1,
+        best_streak=1,
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница — среда пропущена
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    result = await complete_quest(db_session, user.id, quest.id)
+
+    assert result.current_streak == 1  # серия начата заново
+
+    boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
+    boss = boss_result.scalar_one()
+    assert boss.pending_failures == 1
+
+
+async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, user, monkeypatch):
+    db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
+
+    quest = Quest(
+        user_id=user.id,
+        name="зал",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 2, 4],  # пн/ср/пт
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+        last_completed_at=datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc),  # выполнено в пн
+        current_streak=1,
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 6, 9, 0, tzinfo=timezone.utc)  # четверг: среда уже прошла без выполнения
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await process_scheduled_habits(db_session, user.id)
+
+    await db_session.refresh(quest)
+    assert quest.current_streak == 0
+
+    boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
+    boss = boss_result.scalar_one()
+    assert boss.pending_failures == 1
+

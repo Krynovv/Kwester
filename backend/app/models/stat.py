@@ -33,7 +33,12 @@ class Stat(Base):
     is_default: Mapped[bool] = mapped_column(default=False)
 
     users: Mapped["User"] = relationship( back_populates="stats")
-    quests: Mapped[list["Quest"]] = relationship(back_populates="stats")
+    quests: Mapped[list["Quest"]] = relationship(
+        foreign_keys="[Quest.stat_id]", back_populates="stats"
+    )
+    quests_secondary: Mapped[list["Quest"]] = relationship(
+        foreign_keys="[Quest.stat_id_2]", back_populates="stats_2"
+    )
     tags: Mapped[list["Tag"]] = relationship(back_populates="stats")
 
     def __repr__(self):

@@ -20,7 +20,12 @@ export default function QuestsPage() {
       ) : quests?.length ? (
         <div className="space-y-3">
           {quests.map((quest) => (
-            <QuestCard key={quest.id} quest={quest} statName={statNameById[quest.stat_id]} />
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              statName={statNameById[quest.stat_id]}
+              statName2={statNameById[quest.stat_id_2]}
+            />
           ))}
         </div>
       ) : (
