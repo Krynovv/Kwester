@@ -161,7 +161,7 @@ async def test_heal_insufficient_currency_fails(db_session, user_with_boss):
     assert exc_info.value.status_code == 400
 
 
-async def test_projected_damage_counts_second_stat(db_session, user_with_boss):
+async def test_projected_damage_counts_second_stat(db_session, user_with_boss, fake_redis):
     """Квест с двумя статами закрывает обе характеристики за день — иначе второй
     слот квеста никак не влиял бы на бой."""
     stats = (await db_session.execute(
@@ -182,12 +182,12 @@ async def test_projected_damage_counts_second_stat(db_session, user_with_boss):
     db_session.add(quest)
     await db_session.flush()
 
-    status_data = await get_boss_status(db_session, user_with_boss.id)
+    status_data = await get_boss_status(db_session, user_with_boss.id, fake_redis)
     # уровень Силы (1) * два затронутых стата
     assert status_data["projected_damage"] == 2
 
 
-async def test_projected_damage_does_not_double_count_same_stat(db_session, user_with_boss):
+async def test_projected_damage_does_not_double_count_same_stat(db_session, user_with_boss, fake_redis):
     stats = (await db_session.execute(
         select(Stat).where(Stat.user_id == user_with_boss.id).order_by(Stat.id)
     )).scalars().all()
@@ -204,5 +204,5 @@ async def test_projected_damage_does_not_double_count_same_stat(db_session, user
         ))
     await db_session.flush()
 
-    status_data = await get_boss_status(db_session, user_with_boss.id)
+    status_data = await get_boss_status(db_session, user_with_boss.id, fake_redis)
     assert status_data["projected_damage"] == 1
