@@ -60,6 +60,12 @@ export default function QuestCard({ quest, statName, statName2 }) {
   const doneToday = isScheduledHabit && isCompletedToday(quest)
   const canComplete = quest.status === 'active' && !doneToday
 
+  // См. QuestForm: опция исчезает из второго списка, но значение остаётся в стейте.
+  const handleStatIdChange = (value) => {
+    setStatId(value)
+    if (value && value === statId2) setStatId2('')
+  }
+
   const handleSave = (e) => {
     e.preventDefault()
     update(
@@ -100,7 +106,7 @@ export default function QuestCard({ quest, statName, statName2 }) {
           className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-sm text-gray-100"
         />
         <div className="flex flex-wrap gap-3">
-          <Select value={statId} onChange={setStatId} options={statOptions} className="w-52" />
+          <Select value={statId} onChange={handleStatIdChange} options={statOptions} className="w-52" />
           <Select value={statId2} onChange={setStatId2} options={statOptions2} className="w-52" />
           <DatePicker value={dateEnd} onChange={setDateEnd} className="w-40" />
           <TimePicker value={timeEnd} onChange={setTimeEnd} disabled={!dateEnd} className="w-28" />
@@ -110,6 +116,9 @@ export default function QuestCard({ quest, statName, statName2 }) {
           <div>
             <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
               Дни недели (пусто — без расписания)
+            </p>
+            <p className="mb-1 text-xs text-gray-500">
+              Пропуск дня бьёт по боссу. Выполнение вне расписания засчитается в серию, но стоит 5 HP.
             </p>
             <WeekdayPicker value={scheduledDays} onChange={setScheduledDays} />
           </div>

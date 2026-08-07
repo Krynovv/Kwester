@@ -42,6 +42,13 @@ export default function QuestForm() {
     if (value !== 'habit') setScheduledDays([])
   }
 
+  // Опция пропадает из второго списка, но сама по себе не сбрасывается —
+  // без этого форма молча ушла бы на сервер с дублем статов и словила 422.
+  const handleStatIdChange = (value) => {
+    setStatId(value)
+    if (value && value === statId2) setStatId2('')
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
     mutate(
@@ -94,7 +101,7 @@ export default function QuestForm() {
 
       <div className="flex flex-wrap items-center gap-3">
         <Select value={questType} onChange={handleQuestTypeChange} options={questTypes} className="w-44" />
-        <Select value={statId} onChange={setStatId} options={statOptions} className="w-52" />
+        <Select value={statId} onChange={handleStatIdChange} options={statOptions} className="w-52" />
         <Select value={statId2} onChange={setStatId2} options={statOptions2} className="w-52" />
 
         <DatePicker value={dateEnd} onChange={setDateEnd} className="w-40" />
@@ -109,6 +116,9 @@ export default function QuestForm() {
         <div>
           <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
             Дни недели (пусто — без расписания, как раньше)
+          </p>
+          <p className="mb-1 text-xs text-gray-500">
+            Пропуск дня бьёт по боссу. Выполнение вне расписания засчитается в серию, но стоит 5 HP.
           </p>
           <WeekdayPicker value={scheduledDays} onChange={setScheduledDays} />
         </div>

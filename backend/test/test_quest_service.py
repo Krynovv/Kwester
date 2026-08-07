@@ -7,7 +7,11 @@ from app.models.quest import Quest, QuestType, QuestStatus
 from app.models.stat import Stat
 from app.models.boss import Boss
 from app.core.auth import hash_password
-from app.core.constant import OFF_SCHEDULE_HP_PENALTY, STREAK_LOOKBACK_DAYS
+from app.core.constant import (
+    OFF_SCHEDULE_HP_PENALTY,
+    SECONDARY_STAT_XP_SHARE,
+    STREAK_LOOKBACK_DAYS,
+)
 from app.service import quest as quest_module
 from app.service.quest import (
     complete_quest,
@@ -174,7 +178,9 @@ async def test_quest_without_deadline_not_touched(db_session, user):
     assert quest.status == QuestStatus.active
 
 
-async def test_complete_quest_splits_xp_between_two_stats(db_session, user):
+async def test_second_stat_gets_a_share_of_xp(db_session, user):
+    """Основной стат получает полную награду, второй — свою долю.
+    Делить награду пополам нельзя: тогда второй слот только замедлял бы прокачку."""
     stat_a = Stat(user_id=user.id, name="Сила", xp_to_next_level=100)
     stat_b = Stat(user_id=user.id, name="Здоровье", xp_to_next_level=100)
     db_session.add_all([stat_a, stat_b])
@@ -196,8 +202,32 @@ async def test_complete_quest_splits_xp_between_two_stats(db_session, user):
 
     await db_session.refresh(stat_a)
     await db_session.refresh(stat_b)
-    assert stat_a.current_xp == 20
-    assert stat_b.current_xp == 20
+    assert stat_a.current_xp == 40
+    assert stat_b.current_xp == round(40 * SECONDARY_STAT_XP_SHARE)
+
+
+async def test_only_second_slot_filled_gets_full_xp(db_session, user):
+    """Если первый слот пуст, второй стат — фактически основной."""
+    stat = Stat(user_id=user.id, name="Здоровье", xp_to_next_level=100)
+    db_session.add(stat)
+    await db_session.flush()
+
+    quest = Quest(
+        user_id=user.id,
+        stat_id=None,
+        stat_id_2=stat.id,
+        name="зал",
+        reward_currency=0,
+        reward_xp=40,
+        quest_type=QuestType.once,
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    await complete_quest(db_session, user.id, quest.id)
+
+    await db_session.refresh(stat)
+    assert stat.current_xp == 40
 
 
 async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, monkeypatch):

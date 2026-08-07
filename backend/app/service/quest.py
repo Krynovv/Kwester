@@ -11,6 +11,7 @@ from ..models.transaction import TransactionLog, TransactionReason
 from ..core.constant import (
     EXHAUSTED_REWARD_MULTIPLIER,
     OFF_SCHEDULE_HP_PENALTY,
+    SECONDARY_STAT_XP_SHARE,
     STREAK_LOOKBACK_DAYS,
 )
 
@@ -74,15 +75,22 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
         reason=TransactionReason.quest_completed,
     ))
 
-    # До 2 статов на квест — награда XP делится поровну между привязанными статами.
-    stat_ids = sorted({sid for sid in (quest.stat_id, quest.stat_id_2) if sid is not None})
-    if stat_ids:
-        xp_share = round((quest.reward_xp * multiplier) / len(stat_ids))
+    # До 2 статов на квест: основной получает полный XP, второй — долю от него.
+    # Заполнен только второй слот — он и считается основным, иначе пользователь
+    # молча терял бы половину награды.
+    attached = [sid for sid in (quest.stat_id, quest.stat_id_2) if sid is not None]
+    base_xp = quest.reward_xp * multiplier
+    xp_by_stat = {
+        sid: round(base_xp * (1.0 if position == 0 else SECONDARY_STAT_XP_SHARE))
+        for position, sid in enumerate(dict.fromkeys(attached))
+    }
+
+    if xp_by_stat:
         stat_result = await db.execute(
-            select(Stat).where(Stat.id.in_(stat_ids)).with_for_update().order_by(Stat.id)
+            select(Stat).where(Stat.id.in_(xp_by_stat)).with_for_update().order_by(Stat.id)
         )
         for stat in stat_result.scalars().all():
-            stat.current_xp += xp_share
+            stat.current_xp += xp_by_stat[stat.id]
             while stat.current_xp >= stat.xp_to_next_level:
                 stat.current_xp -= stat.xp_to_next_level
                 stat.level += 1

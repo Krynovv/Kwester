@@ -1,6 +1,6 @@
 from datetime import date, datetime, timezone
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, union
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.user import User
@@ -38,15 +38,22 @@ async def _get_stat_by_role(db: AsyncSession, user_id: int, role: CombatRole) ->
 async def _calculate_projected_damage(db: AsyncSession, user_id: int, today: date) -> int:
     strength_stat = await _get_stat_by_role(db, user_id, CombatRole.strength)
 
+    # Квест может быть привязан к двум статам — в бой идут оба, иначе второй
+    # слот никак не влиял бы на урон.
+    completed_today = (
+        Quest.user_id == user_id,
+        func.date(Quest.last_completed_at) == today,
+    )
+    touched_stats = union(
+        select(Quest.stat_id.label("stat_id")).where(*completed_today, Quest.stat_id.is_not(None)),
+        select(Quest.stat_id_2.label("stat_id")).where(*completed_today, Quest.stat_id_2.is_not(None)),
+    ).subquery()
+
     distinct_stats_result = await db.execute(
-        select(func.count(func.distinct(Quest.stat_id)))
-        .join(Stat, Stat.id == Quest.stat_id)
-        .where(
-            Quest.user_id == user_id,
-            Quest.stat_id.is_not(None),
-            Stat.is_default == True,
-            func.date(Quest.last_completed_at) == today,
-        )
+        select(func.count(func.distinct(touched_stats.c.stat_id)))
+        .select_from(touched_stats)
+        .join(Stat, Stat.id == touched_stats.c.stat_id)
+        .where(Stat.is_default == True)
     )
     distinct_stats = distinct_stats_result.scalar() or 0
     strength_level = strength_stat.level if strength_stat else 0
