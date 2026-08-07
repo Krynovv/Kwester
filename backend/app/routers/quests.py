@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.models import reward
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -7,13 +9,27 @@ from ..core.database import get_db
 from ..core.deps import get_current_user
 from ..models.user import User
 from ..models.tag import Tag
-from ..models.quest import Quest
+from ..models.quest import Quest, QuestType
 from ..models.stat import Stat
 from ..schemas.quest import QuestRead, QuestCreate, QuestUpdate
-from ..service.quest import complete_quest, refresh_recurring_quests, mark_overdue_quest_failed
+from ..service.quest import (
+    complete_quest,
+    refresh_recurring_quests,
+    mark_overdue_quest_failed,
+    process_scheduled_habits,
+)
 from ..core.constant import QUEST_TYPE_REWARDS
 
 router = APIRouter(prefix="/quest", tags=["quest"])
+
+
+async def _validate_stat(db: AsyncSession, stat_id: int | None, user_id: int) -> None:
+    if stat_id is None:
+        return
+    stat = await db.get(Stat, stat_id)
+    if stat is None or stat.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Stat not found")
+
 
 @router.get("", response_model=list[QuestRead])
 async def list_quest(
@@ -21,6 +37,7 @@ async def list_quest(
     current_user: User = Depends(get_current_user),
 ):
     await refresh_recurring_quests(db, current_user.id)
+    await process_scheduled_habits(db, current_user.id)
     await mark_overdue_quest_failed(db, current_user.id)
 
     result = await db.execute(select(Quest).where(Quest.user_id == current_user.id))
@@ -48,11 +65,9 @@ async def create_quest(
         if tag is None or tag.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Tag not found")
 
-    if data.stat_id is not None:
-        stat = await db.get(Stat, data.stat_id)
-        if stat is None or stat.user_id != current_user.id:
-            raise HTTPException(status_code=404, detail="Stat not found")
-    
+    await _validate_stat(db, data.stat_id, current_user.id)
+    await _validate_stat(db, data.stat_id_2, current_user.id)
+
     rewards = QUEST_TYPE_REWARDS[data.quest_type]
 
     quest = Quest(
@@ -61,6 +76,8 @@ async def create_quest(
         reward_xp=rewards["xp"],
         **data.model_dump(),
     )
+    if quest.scheduled_days:
+        quest.streak_checked_until = datetime.now(timezone.utc).date()
 
     db.add(quest)
     await db.commit()
@@ -92,14 +109,37 @@ async def update_quest(
         tag = await db.get(Tag, update_data["tag_id"])
         if tag is None or tag.user_id != current_user.id:
             raise HTTPException(status_code=404, detail="Stat not found")
-    
-    if "stat_id" in update_data and update_data["stat_id"] is not None:
-        stat = await db.get(Stat, update_data["stat_id"])
-        if stat is None or stat.user_id != current_user.id:
-            raise HTTPException(status_code=404, detail="Stat not found")
+
+    if "stat_id" in update_data:
+        await _validate_stat(db, update_data["stat_id"], current_user.id)
+
+    if "stat_id_2" in update_data:
+        await _validate_stat(db, update_data["stat_id_2"], current_user.id)
+
+    new_stat_id = update_data.get("stat_id", quest.stat_id)
+    new_stat_id_2 = update_data.get("stat_id_2", quest.stat_id_2)
+    if new_stat_id is not None and new_stat_id == new_stat_id_2:
+        raise HTTPException(status_code=400, detail="stat_id and stat_id_2 must be different stats")
+
+    if "scheduled_days" in update_data and update_data["scheduled_days"] is not None:
+        if quest.quest_type != QuestType.habit:
+            raise HTTPException(status_code=400, detail="scheduled_days is only allowed for habit quests")
+
+    schedule_changed = (
+        "scheduled_days" in update_data
+        and update_data["scheduled_days"] != quest.scheduled_days
+    )
 
     for field, value in update_data.items():
         setattr(quest, field, value)
+
+    # Новое расписание — новая серия. Без сброса streak_checked_until пропуски
+    # считались бы от даты создания квеста, вплоть до сотен штрафов за один GET.
+    if schedule_changed:
+        quest.current_streak = 0
+        quest.streak_checked_until = (
+            datetime.now(timezone.utc).date() if quest.scheduled_days else None
+        )
 
     await db.commit()
     await db.refresh(quest)
@@ -117,4 +157,3 @@ async def delete_quest(
 
     await db.delete(quest)
     await db.commit()
-

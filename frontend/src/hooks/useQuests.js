@@ -41,6 +41,8 @@ export function useCompleteQuest() {
       queryClient.invalidateQueries({ queryKey: ['quests'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['stats'] })
+      // Выполнение двигает урон по боссу, а внеплановая привычка ещё и HP.
+      queryClient.invalidateQueries({ queryKey: ['boss'] })
       addToast(`«${quest.name}» выполнен: +${quest.reward_xp} XP +${quest.reward_currency} 🪙`, 'success')
     },
     onError: () => addToast('Не удалось выполнить квест', 'error'),

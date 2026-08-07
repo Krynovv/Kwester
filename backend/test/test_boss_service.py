@@ -2,6 +2,7 @@ import pytest
 from datetime import date, datetime, timezone, timedelta
 from fastapi import HTTPException
 import datetime as datetime_module
+from sqlalchemy import select
 from app.models.user import User
 from app.models.stat import Stat, CombatRole
 from app.models.boss import Boss
@@ -158,3 +159,50 @@ async def test_heal_insufficient_currency_fails(db_session, user_with_boss):
     with pytest.raises(HTTPException) as exc_info:
         await heal(db_session, user_with_boss.id)
     assert exc_info.value.status_code == 400
+
+
+async def test_projected_damage_counts_second_stat(db_session, user_with_boss):
+    """Квест с двумя статами закрывает обе характеристики за день — иначе второй
+    слот квеста никак не влиял бы на бой."""
+    stats = (await db_session.execute(
+        select(Stat).where(Stat.user_id == user_with_boss.id).order_by(Stat.id)
+    )).scalars().all()
+    strength = next(s for s in stats if s.combat_role == CombatRole.strength)
+    health = next(s for s in stats if s.combat_role == CombatRole.health)
+
+    quest = Quest(
+        user_id=user_with_boss.id,
+        stat_id=strength.id,
+        stat_id_2=health.id,
+        name="зал",
+        quest_type=QuestType.once,
+        status=QuestStatus.done,
+        last_completed_at=datetime.now(timezone.utc),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    status_data = await get_boss_status(db_session, user_with_boss.id)
+    # уровень Силы (1) * два затронутых стата
+    assert status_data["projected_damage"] == 2
+
+
+async def test_projected_damage_does_not_double_count_same_stat(db_session, user_with_boss):
+    stats = (await db_session.execute(
+        select(Stat).where(Stat.user_id == user_with_boss.id).order_by(Stat.id)
+    )).scalars().all()
+    strength = next(s for s in stats if s.combat_role == CombatRole.strength)
+
+    for name in ("квест 1", "квест 2"):
+        db_session.add(Quest(
+            user_id=user_with_boss.id,
+            stat_id=strength.id,
+            name=name,
+            quest_type=QuestType.once,
+            status=QuestStatus.done,
+            last_completed_at=datetime.now(timezone.utc),
+        ))
+    await db_session.flush()
+
+    status_data = await get_boss_status(db_session, user_with_boss.id)
+    assert status_data["projected_damage"] == 1

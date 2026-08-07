@@ -6,6 +6,7 @@ import Button from './Button'
 import Select from './Select'
 import DatePicker from './DatePicker'
 import TimePicker from './TimePicker'
+import WeekdayPicker from './WeekdayPicker'
 
 const questTypes = [
   { value: 'once', label: 'Разовый' },
@@ -19,6 +20,8 @@ export default function QuestForm() {
   const [description, setDescription] = useState('')
   const [questType, setQuestType] = useState('once')
   const [statId, setStatId] = useState('')
+  const [statId2, setStatId2] = useState('')
+  const [scheduledDays, setScheduledDays] = useState([])
   const [dateEnd, setDateEnd] = useState('')
   const [timeEnd, setTimeEnd] = useState('')
 
@@ -29,6 +32,22 @@ export default function QuestForm() {
     { value: '', label: 'Без привязки к стату' },
     ...(stats ?? []).map((s) => ({ value: String(s.id), label: s.name })),
   ]
+  // второй стат не может дублировать первый
+  const statOptions2 = statOptions.filter((o) => o.value === '' || o.value !== statId)
+
+  const isHabit = questType === 'habit'
+
+  const handleQuestTypeChange = (value) => {
+    setQuestType(value)
+    if (value !== 'habit') setScheduledDays([])
+  }
+
+  // Опция пропадает из второго списка, но сама по себе не сбрасывается —
+  // без этого форма молча ушла бы на сервер с дублем статов и словила 422.
+  const handleStatIdChange = (value) => {
+    setStatId(value)
+    if (value && value === statId2) setStatId2('')
+  }
 
   const handleSubmit = (e) => {
     e.preventDefault()
@@ -38,7 +57,9 @@ export default function QuestForm() {
         description: description || null,
         quest_type: questType,
         stat_id: statId ? Number(statId) : null,
+        stat_id_2: statId2 ? Number(statId2) : null,
         date_end: fromDateAndTimeInputValue(dateEnd, timeEnd),
+        scheduled_days: isHabit && scheduledDays.length > 0 ? scheduledDays : null,
       },
       {
         onSuccess: () => {
@@ -46,6 +67,8 @@ export default function QuestForm() {
           setDescription('')
           setQuestType('once')
           setStatId('')
+          setStatId2('')
+          setScheduledDays([])
           setDateEnd('')
           setTimeEnd('')
         },
@@ -77,8 +100,9 @@ export default function QuestForm() {
       />
 
       <div className="flex flex-wrap items-center gap-3">
-        <Select value={questType} onChange={setQuestType} options={questTypes} className="w-44" />
-        <Select value={statId} onChange={setStatId} options={statOptions} className="w-52" />
+        <Select value={questType} onChange={handleQuestTypeChange} options={questTypes} className="w-44" />
+        <Select value={statId} onChange={handleStatIdChange} options={statOptions} className="w-52" />
+        <Select value={statId2} onChange={setStatId2} options={statOptions2} className="w-52" />
 
         <DatePicker value={dateEnd} onChange={setDateEnd} className="w-40" />
         <TimePicker value={timeEnd} onChange={setTimeEnd} disabled={!dateEnd} className="w-28" />
@@ -87,6 +111,18 @@ export default function QuestForm() {
           {isPending ? 'Создаём...' : 'Создать квест'}
         </Button>
       </div>
+
+      {isHabit && (
+        <div>
+          <p className="mb-1 text-xs uppercase tracking-wide text-gray-500">
+            Дни недели (пусто — без расписания, как раньше)
+          </p>
+          <p className="mb-1 text-xs text-gray-500">
+            Пропуск дня бьёт по боссу. Выполнение вне расписания засчитается в серию, но стоит 5 HP.
+          </p>
+          <WeekdayPicker value={scheduledDays} onChange={setScheduledDays} />
+        </div>
+      )}
 
       {error && <p className="text-sm text-cyber-danger">Не удалось создать квест</p>}
     </form>

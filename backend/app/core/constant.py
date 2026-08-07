@@ -40,6 +40,10 @@ BOSS_BASE_HP = 100
 BOSS_HP_PER_LEVEL = 20            
 EXHAUSTED_REWARD_MULTIPLIER = 0.5   # штраф наград
 
+OFF_SCHEDULE_HP_PENALTY = 5         # HP за выполнение привычки вне её расписания
+STREAK_LOOKBACK_DAYS = 30           # вглубь скольких дней ищем пропуски расписания
+SECONDARY_STAT_XP_SHARE = 0.5       # доля XP для второго стата квеста
+
 WIN_BASE_CURRENCY = 20
 WIN_CURRENCY_PER_BOSS_LEVEL = 5 
 WIN_BASE_XP = 50
