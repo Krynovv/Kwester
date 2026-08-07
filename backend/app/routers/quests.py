@@ -1,3 +1,5 @@
+from datetime import datetime, timezone
+
 from app.models import reward
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -74,6 +76,8 @@ async def create_quest(
         reward_xp=rewards["xp"],
         **data.model_dump(),
     )
+    if quest.scheduled_days:
+        quest.streak_checked_until = datetime.now(timezone.utc).date()
 
     db.add(quest)
     await db.commit()
@@ -121,8 +125,21 @@ async def update_quest(
         if quest.quest_type != QuestType.habit:
             raise HTTPException(status_code=400, detail="scheduled_days is only allowed for habit quests")
 
+    schedule_changed = (
+        "scheduled_days" in update_data
+        and update_data["scheduled_days"] != quest.scheduled_days
+    )
+
     for field, value in update_data.items():
         setattr(quest, field, value)
+
+    # Новое расписание — новая серия. Без сброса streak_checked_until пропуски
+    # считались бы от даты создания квеста, вплоть до сотен штрафов за один GET.
+    if schedule_changed:
+        quest.current_streak = 0
+        quest.streak_checked_until = (
+            datetime.now(timezone.utc).date() if quest.scheduled_days else None
+        )
 
     await db.commit()
     await db.refresh(quest)

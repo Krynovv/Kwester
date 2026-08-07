@@ -1,6 +1,6 @@
 from datetime import date, datetime, timedelta, timezone
 from fastapi import HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models.quest import Quest, QuestStatus, QuestType
@@ -8,18 +8,31 @@ from ..models.stat import Stat
 from ..models.user import User
 from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
-from ..core.constant import EXHAUSTED_REWARD_MULTIPLIER
+from ..core.constant import (
+    EXHAUSTED_REWARD_MULTIPLIER,
+    OFF_SCHEDULE_HP_PENALTY,
+    STREAK_LOOKBACK_DAYS,
+)
 
 
-def _due_dates_between(scheduled_days: list[int], start: date, end: date) -> list[date]:
-    """Дни расписания строго между start и end (границы не включаются)."""
-    due: list[date] = []
-    d = start + timedelta(days=1)
-    while d < end:
-        if d.weekday() in scheduled_days:
-            due.append(d)
-        d += timedelta(days=1)
-    return due
+def _missed_due_dates(quest: Quest, today: date) -> list[date]:
+    """Дни расписания, пропущенные с последней проверки, строго до today.
+
+    Окно ограничено STREAK_LOOKBACK_DAYS: streak_checked_until пуст у привычки,
+    которой расписание проставили уже после создания, и без ограничения первый же
+    GET начислил бы штраф за каждый день её жизни.
+    """
+    floor = quest.streak_checked_until or (quest.date_start.date() - timedelta(days=1))
+    # floor исключается из перебора, поэтому +1 — иначе окно вышло бы на день короче
+    floor = max(floor, today - timedelta(days=STREAK_LOOKBACK_DAYS + 1))
+
+    missed: list[date] = []
+    day = floor + timedelta(days=1)
+    while day < today:
+        if day.weekday() in quest.scheduled_days:
+            missed.append(day)
+        day += timedelta(days=1)
+    return missed
 
 
 async def _penalize_boss(db: AsyncSession, user_id: int, amount: int) -> None:
@@ -77,15 +90,19 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int) -> Quest
 
     # Серия (streak) — только для привычек с расписанием.
     if is_scheduled_habit:
-        floor = quest.streak_checked_until or (quest.date_start.date() - timedelta(days=1))
-        missed = _due_dates_between(quest.scheduled_days, floor, today)
+        missed = _missed_due_dates(quest, today)
         if missed:
-            quest.current_streak = 1
+            quest.current_streak = 0
             await _penalize_boss(db, user_id, len(missed))
-        else:
-            quest.current_streak += 1
+
+        quest.current_streak += 1
         quest.best_streak = max(quest.best_streak, quest.current_streak)
         quest.streak_checked_until = today
+
+        # Внеплановая активность засчитывается в серию, но стоит немного HP —
+        # иначе привычку "только по понедельникам" можно накручивать каждый день.
+        if today.weekday() not in quest.scheduled_days:
+            user.current_hp = max(0, user.current_hp - OFF_SCHEDULE_HP_PENALTY)
 
     quest.last_completed_at = now
 
@@ -145,7 +162,8 @@ async def process_scheduled_habits(db: AsyncSession, user_id: int) -> None:
         select(Quest).where(
             Quest.user_id == user_id,
             Quest.quest_type == QuestType.habit,
-            Quest.scheduled_days.is_not(None),
+            Quest.status == QuestStatus.active,
+            func.cardinality(Quest.scheduled_days) > 0,
         )
     )
     quests = result.scalars().all()
@@ -153,8 +171,7 @@ async def process_scheduled_habits(db: AsyncSession, user_id: int) -> None:
     total_missed = 0
     changed = False
     for quest in quests:
-        floor = quest.streak_checked_until or (quest.date_start.date() - timedelta(days=1))
-        missed = _due_dates_between(quest.scheduled_days, floor, today)
+        missed = _missed_due_dates(quest, today)
         if missed:
             quest.current_streak = 0
             # today ещё не наступил как "прошедший" — отмечаем проверенным по вчера включительно

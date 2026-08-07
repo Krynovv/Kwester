@@ -7,6 +7,7 @@ from app.models.quest import Quest, QuestType, QuestStatus
 from app.models.stat import Stat
 from app.models.boss import Boss
 from app.core.auth import hash_password
+from app.core.constant import OFF_SCHEDULE_HP_PENALTY, STREAK_LOOKBACK_DAYS
 from app.service import quest as quest_module
 from app.service.quest import (
     complete_quest,
@@ -311,6 +312,154 @@ async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, 
 
     await db_session.refresh(quest)
     assert quest.current_streak == 0
+
+    boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
+    boss = boss_result.scalar_one()
+    assert boss.pending_failures == 1
+
+
+async def test_missed_days_are_capped_by_lookback_window(db_session, user, monkeypatch):
+    """Привычка, у которой streak_checked_until пуст (расписание проставили позже),
+    не должна обвалить на пользователя штраф за всю её историю."""
+    db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
+
+    quest = Quest(
+        user_id=user.id,
+        name="старая привычка",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 1, 2, 3, 4, 5, 6],  # каждый день
+        date_start=datetime(2025, 8, 7, 8, 0, tzinfo=timezone.utc),  # год назад
+        streak_checked_until=None,
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await process_scheduled_habits(db_session, user.id)
+
+    boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
+    boss = boss_result.scalar_one()
+    assert boss.pending_failures == STREAK_LOOKBACK_DAYS
+
+
+async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, monkeypatch):
+    """Привычку с истёкшим date_end mark_overdue_quest_failed уже наказала один раз —
+    дальше она не должна бить по боссу за каждый день расписания."""
+    db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
+
+    quest = Quest(
+        user_id=user.id,
+        name="заброшенная привычка",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 1, 2, 3, 4, 5, 6],
+        status=QuestStatus.failed,
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc)
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await process_scheduled_habits(db_session, user.id)
+
+    boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
+    boss = boss_result.scalar_one()
+    assert boss.pending_failures == 0
+
+
+async def test_off_schedule_completion_costs_hp(db_session, user, monkeypatch):
+    """Внеплановое выполнение засчитывается в серию, но снимает HP —
+    иначе привычку «только по понедельникам» можно накручивать каждый день."""
+    user.current_hp = 100
+    quest = Quest(
+        user_id=user.id,
+        name="зал по понедельникам",
+        quest_type=QuestType.habit,
+        scheduled_days=[0],
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),  # понедельник
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)  # вторник — не по расписанию
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    result = await complete_quest(db_session, user.id, quest.id)
+
+    assert result.current_streak == 1
+    await db_session.refresh(user)
+    assert user.current_hp == 100 - OFF_SCHEDULE_HP_PENALTY
+
+
+async def test_on_schedule_completion_does_not_cost_hp(db_session, user, monkeypatch):
+    user.current_hp = 100
+    quest = Quest(
+        user_id=user.id,
+        name="зал по понедельникам",
+        quest_type=QuestType.habit,
+        scheduled_days=[0],
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)  # понедельник
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await complete_quest(db_session, user.id, quest.id)
+
+    await db_session.refresh(user)
+    assert user.current_hp == 100
+
+
+async def test_get_then_complete_same_day_penalizes_once(db_session, user, monkeypatch):
+    """Роутер зовёт process_scheduled_habits перед выдачей списка, а затем
+    пользователь жмёт «Выполнить» — один пропуск не должен посчитаться дважды."""
+    db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
+
+    quest = Quest(
+        user_id=user.id,
+        name="зал",
+        quest_type=QuestType.habit,
+        scheduled_days=[0, 2, 4],  # пн/ср/пт
+        date_start=datetime(2026, 8, 3, 8, 0, tzinfo=timezone.utc),
+        last_completed_at=datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc),
+        current_streak=1,
+        streak_checked_until=date(2026, 8, 3),
+    )
+    db_session.add(quest)
+    await db_session.flush()
+
+    class FakeDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница, среда пропущена
+
+    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+
+    await process_scheduled_habits(db_session, user.id)
+    await complete_quest(db_session, user.id, quest.id)
 
     boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
     boss = boss_result.scalar_one()
