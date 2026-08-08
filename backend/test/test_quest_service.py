@@ -266,7 +266,7 @@ async def test_only_second_slot_filled_gets_full_xp(db_session, user, fake_redis
     assert stat.current_xp == 40
 
 
-async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, fake_redis, monkeypatch):
+async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, fake_redis, freeze_time):
     quest = Quest(
         user_id=user.id,
         name="зал пн/ср/пт",
@@ -277,12 +277,7 @@ async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, 
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc))
 
     await complete_quest(db_session, user.id, quest.id, fake_redis)
 
@@ -291,7 +286,7 @@ async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, 
     assert exc_info.value.status_code == 400
 
 
-async def test_scheduled_habit_streak_increments_without_gap(db_session, user, fake_redis, monkeypatch):
+async def test_scheduled_habit_streak_increments_without_gap(db_session, user, fake_redis, freeze_time):
     quest = Quest(
         user_id=user.id,
         name="зал",
@@ -305,12 +300,7 @@ async def test_scheduled_habit_streak_increments_without_gap(db_session, user, f
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc)  # среда — следующий день по расписанию
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc))  # среда — следующий день по расписанию
 
     result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
@@ -318,7 +308,7 @@ async def test_scheduled_habit_streak_increments_without_gap(db_session, user, f
     assert result.best_streak == 2
 
 
-async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db_session, user, fake_redis, monkeypatch):
+async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db_session, user, fake_redis, freeze_time):
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
 
     quest = Quest(
@@ -335,12 +325,7 @@ async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница — среда пропущена
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))  # пятница — среда пропущена
 
     result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
@@ -351,7 +336,7 @@ async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db
     assert boss.pending_failures == 1
 
 
-async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, user, fake_redis, monkeypatch):
+async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, user, fake_redis, freeze_time):
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
 
     quest = Quest(
@@ -367,12 +352,7 @@ async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, 
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 6, 9, 0, tzinfo=timezone.utc)  # четверг: среда уже прошла без выполнения
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 6, 9, 0, tzinfo=timezone.utc))  # четверг: среда уже прошла без выполнения
 
     await process_scheduled_habits(db_session, user.id, fake_redis)
 
@@ -384,7 +364,7 @@ async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, 
     assert boss.pending_failures == 1
 
 
-async def test_missed_days_are_capped_by_lookback_window(db_session, user, fake_redis, monkeypatch):
+async def test_missed_days_are_capped_by_lookback_window(db_session, user, fake_redis, freeze_time):
     """Привычка, у которой streak_checked_until пуст (расписание проставили позже),
     не должна обвалить на пользователя штраф за всю её историю."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -400,12 +380,7 @@ async def test_missed_days_are_capped_by_lookback_window(db_session, user, fake_
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))
 
     await process_scheduled_habits(db_session, user.id, fake_redis)
 
@@ -414,7 +389,7 @@ async def test_missed_days_are_capped_by_lookback_window(db_session, user, fake_
     assert boss.pending_failures == STREAK_LOOKBACK_DAYS
 
 
-async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, fake_redis, monkeypatch):
+async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, fake_redis, freeze_time):
     """Привычку с истёкшим date_end mark_overdue_quest_failed уже наказала один раз —
     дальше она не должна бить по боссу за каждый день расписания."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -431,12 +406,7 @@ async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, fake
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc))
 
     await process_scheduled_habits(db_session, user.id, fake_redis)
 
@@ -445,7 +415,7 @@ async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, fake
     assert boss.pending_failures == 0
 
 
-async def test_off_schedule_completion_costs_hp(db_session, user, fake_redis, monkeypatch):
+async def test_off_schedule_completion_costs_hp(db_session, user, fake_redis, freeze_time):
     """Внеплановое выполнение засчитывается в серию, но снимает HP —
     иначе привычку «только по понедельникам» можно накручивать каждый день."""
     user.current_hp = 100
@@ -460,12 +430,7 @@ async def test_off_schedule_completion_costs_hp(db_session, user, fake_redis, mo
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)  # вторник — не по расписанию
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc))  # вторник — не по расписанию
 
     result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
@@ -474,7 +439,7 @@ async def test_off_schedule_completion_costs_hp(db_session, user, fake_redis, mo
     assert user.current_hp == 100 - OFF_SCHEDULE_HP_PENALTY
 
 
-async def test_on_schedule_completion_does_not_cost_hp(db_session, user, fake_redis, monkeypatch):
+async def test_on_schedule_completion_does_not_cost_hp(db_session, user, fake_redis, freeze_time):
     user.current_hp = 100
     quest = Quest(
         user_id=user.id,
@@ -486,12 +451,7 @@ async def test_on_schedule_completion_does_not_cost_hp(db_session, user, fake_re
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)  # понедельник
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc))  # понедельник
 
     await complete_quest(db_session, user.id, quest.id, fake_redis)
 
@@ -499,7 +459,7 @@ async def test_on_schedule_completion_does_not_cost_hp(db_session, user, fake_re
     assert user.current_hp == 100
 
 
-async def test_get_then_complete_same_day_penalizes_once(db_session, user, fake_redis, monkeypatch):
+async def test_get_then_complete_same_day_penalizes_once(db_session, user, fake_redis, freeze_time):
     """Роутер зовёт process_scheduled_habits перед выдачей списка, а затем
     пользователь жмёт «Выполнить» — один пропуск не должен посчитаться дважды."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -517,12 +477,7 @@ async def test_get_then_complete_same_day_penalizes_once(db_session, user, fake_
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница, среда пропущена
-
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))  # пятница, среда пропущена
 
     await process_scheduled_habits(db_session, user.id, fake_redis)
     await complete_quest(db_session, user.id, quest.id, fake_redis)

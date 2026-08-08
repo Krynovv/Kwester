@@ -1,7 +1,6 @@
 import pytest
 from datetime import date, datetime, timezone, timedelta
 from fastapi import HTTPException
-import datetime as datetime_module
 from sqlalchemy import select
 from app.models.user import User
 from app.models.stat import Stat, CombatRole
@@ -56,33 +55,18 @@ def test_calculate_boss_hp():
     assert calculate_boss_hp(1) == BOSS_BASE_HP + BOSS_HP_PER_LEVEL
 
 
-async def test_fight_before_window_rejected(db_session, user_with_boss, fake_redis, monkeypatch):
-    import app.service.boss as boss_module
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc)  # раньше 17:00
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
+async def test_fight_before_window_rejected(db_session, user_with_boss, fake_redis, freeze_time):
+    freeze_time(datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc))  # раньше 17:00
 
     with pytest.raises(HTTPException) as exc_info:
         await fight_boss(db_session, user_with_boss.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 
-async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, fake_redis, monkeypatch):
-    import app.service.boss as boss_module
-
-    real_datetime = datetime_module.datetime
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            actual = real_datetime.now(tz)
-            return actual.replace(hour=18, minute=0, second=0, microsecond=0)  # в окне боя
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
+async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, fake_redis, freeze_time):
+    # Сегодняшний день, но в окне боя: квесты ниже проставляют last_completed_at
+    # реальным «сейчас», и день должен совпасть с днём боя.
+    freeze_time(datetime.now(timezone.utc).replace(hour=18, minute=0, second=0, microsecond=0))
 
     stats_result = await db_session.execute(
         Stat.__table__.select().where(Stat.user_id == user_with_boss.id)
@@ -106,15 +90,8 @@ async def test_fight_win_awards_currency_and_xp(db_session, user_with_boss, fake
     assert user_with_boss.boss_currency_balance > 0
 
 
-async def test_fight_loss_reduces_hp(db_session, user_with_boss, fake_redis, monkeypatch):
-    import app.service.boss as boss_module
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
+async def test_fight_loss_reduces_hp(db_session, user_with_boss, fake_redis, freeze_time):
+    freeze_time(datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc))
 
     # никаких выполненных квестов -> distinct_stats = 0 -> damage_dealt = 0 -> гарантированное поражение
     fight = await fight_boss(db_session, user_with_boss.id, fake_redis)
@@ -124,15 +101,8 @@ async def test_fight_loss_reduces_hp(db_session, user_with_boss, fake_redis, mon
     assert user_with_boss.current_hp < BASE_MAX_HP + HP_PER_HEALTH_LEVEL
 
 
-async def test_cannot_fight_twice_same_day(db_session, user_with_boss, fake_redis, monkeypatch):
-    import app.service.boss as boss_module
-
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
-
-    monkeypatch.setattr(boss_module, "datetime", FakeDatetime)
+async def test_cannot_fight_twice_same_day(db_session, user_with_boss, fake_redis, freeze_time):
+    freeze_time(datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc))
 
     await fight_boss(db_session, user_with_boss.id, fake_redis)
 

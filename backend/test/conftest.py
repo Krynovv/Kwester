@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -45,6 +47,34 @@ class FakeRedis:
 @pytest.fixture
 def fake_redis():
     return FakeRedis()
+
+
+@pytest.fixture
+def freeze_time(monkeypatch):
+    """Останавливает часы во всех модулях, которые их читают.
+
+    Момент задаётся в UTC, а now(tz) отдаёт его пересчитанным в запрошенный
+    пояс. Возвращать UTC-время с чужим ярлыком пояса нельзя: логика локальных
+    суток именно на этом пересчёте и держится.
+    """
+
+    def _freeze(moment: datetime):
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return moment.replace(tzinfo=None)
+                return moment.astimezone(tz)
+
+        import app.core.timezones as timezones_module
+        import app.service.boss as boss_module
+        import app.service.quest as quest_module
+
+        for module in (timezones_module, quest_module, boss_module):
+            monkeypatch.setattr(module, "datetime", FrozenDatetime)
+        return FrozenDatetime
+
+    return _freeze
 
 
 engine = create_async_engine(settings.test_database_url)

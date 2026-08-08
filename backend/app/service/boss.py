@@ -1,9 +1,13 @@
 import json
 from datetime import date, datetime, timezone
+from zoneinfo import ZoneInfo
+
 from fastapi import HTTPException, status
 from sqlalchemy import select, func, union
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
+
+from ..core.timezones import get_user_zone, local_now, local_today, resolve_zone
 
 from ..models.user import User
 from ..models.boss import Boss
@@ -38,14 +42,20 @@ async def _get_stat_by_role(db: AsyncSession, user_id: int, role: CombatRole) ->
     )    
     return result.scalar_one_or_none()
 
-async def _calculate_projected_damage(db: AsyncSession, user_id: int, today: date) -> int:
+async def _calculate_projected_damage(
+    db: AsyncSession, user_id: int, today: date, zone: ZoneInfo
+) -> int:
     strength_stat = await _get_stat_by_role(db, user_id, CombatRole.strength)
 
     # Квест может быть привязан к двум статам — в бой идут оба, иначе второй
     # слот никак не влиял бы на урон.
+    # last_completed_at лежит в UTC, поэтому дату вынимаем уже после перевода в
+    # пояс игрока: голый func.date() отрезал бы вечерние выполнения в следующий
+    # UTC-день и терял их урон.
+    local_completed_at = func.timezone(zone.key, Quest.last_completed_at)
     completed_today = (
         Quest.user_id == user_id,
-        func.date(Quest.last_completed_at) == today,
+        func.date(local_completed_at) == today,
     )
     touched_stats = union(
         select(Quest.stat_id.label("stat_id")).where(*completed_today, Quest.stat_id.is_not(None)),
@@ -68,7 +78,7 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     result = await db.execute(select(User).where(User.id == user_id). with_for_update())
     user = result.scalar_one()
 
-    today = datetime.now(timezone.utc).date()
+    today = local_today(resolve_zone(user.timezone))
     if user.hp_regen_date == today:
         return
 
@@ -112,16 +122,17 @@ async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
     max_hp = calculate_max_hp(health_stat.level if health_stat else 0)
     boss_hp = calculate_boss_hp(boss.level)
 
-    today = datetime.now(timezone.utc).date()
+    zone = resolve_zone(user.timezone)
+    today = local_today(zone)
     fight_result = await db.execute(
         select(BossFight).where(BossFight.user_id == user_id, BossFight.fight_date == today).limit(1)
     )
     already_fought = fight_result.scalar_one_or_none() is not None
 
-    now_hour = datetime.now(timezone.utc).hour
-    window_open = now_hour >= FIGHT_WINDOW_START_HOUR
+    # Окно боя — вечернее по местному времени игрока, а не по UTC.
+    window_open = local_now(zone).hour >= FIGHT_WINDOW_START_HOUR
 
-    projected_damage = await _calculate_projected_damage(db, user_id, today)
+    projected_damage = await _calculate_projected_damage(db, user_id, today, zone)
 
     result = {
         "boss_name": get_boss_name(boss.level),
@@ -143,13 +154,14 @@ async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
 async def fight_boss(db: AsyncSession, user_id: int, redis: Redis) -> BossFight:
     await ensure_hp_regen(db, user_id)
 
-    now = datetime.now(timezone.utc)
+    zone = await get_user_zone(db, user_id)
+    now = local_now(zone)
     today = now.date()
 
     if now.hour < FIGHT_WINDOW_START_HOUR:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Fight window opens at {FIGHT_WINDOW_START_HOUR}:00 UTC",
+            detail=f"Fight window opens at {FIGHT_WINDOW_START_HOUR}:00 ({zone.key})",
         )
 
     existing_fight = await db.execute(
@@ -168,7 +180,7 @@ async def fight_boss(db: AsyncSession, user_id: int, redis: Redis) -> BossFight:
     health_stat = await _get_stat_by_role(db, user_id, CombatRole.health)
     intellect_stat = await _get_stat_by_role(db, user_id, CombatRole.intellect)
 
-    damage_dealt = await _calculate_projected_damage(db, user_id, today)
+    damage_dealt = await _calculate_projected_damage(db, user_id, today, zone)
 
     boss_hp = calculate_boss_hp(boss.level)
     max_hp = calculate_max_hp(health_stat.level if health_stat else 0)

@@ -1,6 +1,3 @@
-from datetime import datetime, timezone
-
-from app.models import reward
 from fastapi import APIRouter, Depends, HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -9,6 +6,7 @@ from sqlalchemy import select
 from ..core.database import get_db
 from ..core.deps import get_current_user
 from ..core.redis import get_redis
+from ..core.timezones import local_today, resolve_zone
 from ..models.user import User
 from ..models.tag import Tag
 from ..models.quest import Quest, QuestType
@@ -80,7 +78,7 @@ async def create_quest(
         **data.model_dump(),
     )
     if quest.scheduled_days:
-        quest.streak_checked_until = datetime.now(timezone.utc).date()
+        quest.streak_checked_until = local_today(resolve_zone(current_user.timezone))
 
     db.add(quest)
     await db.commit()
@@ -142,7 +140,7 @@ async def update_quest(
     if schedule_changed:
         quest.current_streak = 0
         quest.streak_checked_until = (
-            datetime.now(timezone.utc).date() if quest.scheduled_days else None
+            local_today(resolve_zone(current_user.timezone)) if quest.scheduled_days else None
         )
 
     await db.commit()

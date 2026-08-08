@@ -1,8 +1,12 @@
 from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
+
 from fastapi import HTTPException, status
 from redis.asyncio import Redis
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..core.timezones import get_user_zone, local_today, to_local_date
 
 from ..models.quest import Quest, QuestStatus, QuestType
 from ..models.stat import Stat
@@ -19,14 +23,17 @@ from ..core.constant import (
 )
 
 
-def _missed_due_dates(quest: Quest, today: date) -> list[date]:
+def _missed_due_dates(quest: Quest, today: date, zone: ZoneInfo) -> list[date]:
     """Дни расписания, пропущенные с последней проверки, строго до today.
 
     Окно ограничено STREAK_LOOKBACK_DAYS: streak_checked_until пуст у привычки,
     которой расписание проставили уже после создания, и без ограничения первый же
     GET начислил бы штраф за каждый день её жизни.
+
+    today и date_start приводятся к поясу пользователя: иначе у игрока восточнее
+    UTC вечерний старт привычки попадал бы уже в следующий день расписания.
     """
-    floor = quest.streak_checked_until or (quest.date_start.date() - timedelta(days=1))
+    floor = quest.streak_checked_until or (to_local_date(quest.date_start, zone) - timedelta(days=1))
     # floor исключается из перебора, поэтому +1 — иначе окно вышло бы на день короче
     floor = max(floor, today - timedelta(days=STREAK_LOOKBACK_DAYS + 1))
 
@@ -57,11 +64,14 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int, redis: R
     if quest.status != QuestStatus.active:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quest is not active")
 
+    zone = await get_user_zone(db, user_id)
+    # now остаётся UTC — это момент для хранения; today считается в поясе
+    # пользователя, потому что это граница его суток.
     now = datetime.now(timezone.utc)
-    today = now.date()
+    today = local_today(zone)
     is_scheduled_habit = quest.quest_type == QuestType.habit and bool(quest.scheduled_days)
 
-    if is_scheduled_habit and quest.last_completed_at is not None and quest.last_completed_at.date() == today:
+    if is_scheduled_habit and to_local_date(quest.last_completed_at, zone) == today:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Quest already completed today")
 
     result = await db.execute(select(User).where(User.id == user_id).with_for_update())
@@ -97,7 +107,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int, redis: R
 
     # Серия (streak) — только для привычек с расписанием.
     if is_scheduled_habit:
-        missed = _missed_due_dates(quest, today)
+        missed = _missed_due_dates(quest, today, zone)
         if missed:
             quest.current_streak = 0
             await _penalize_boss(db, user_id, len(missed))
@@ -132,9 +142,9 @@ RESET_INTERVALS = {
 }
 
 async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
-    now = datetime.now(timezone.utc)
-    today = now.date()
-    current_week = now.isocalendar()[:2]
+    zone = await get_user_zone(db, user_id)
+    today = local_today(zone)
+    current_week = today.isocalendar()[:2]
 
     result = await db.execute(
         select(Quest).where(
@@ -149,13 +159,14 @@ async def refresh_recurring_quests(db: AsyncSession, user_id: int) -> None:
     for quest in quests:
         if quest.last_completed_at is None:
                 continue
+        completed_local = to_local_date(quest.last_completed_at, zone)
         if quest.quest_type == QuestType.daily:
-            if quest.last_completed_at.date() < today:
+            if completed_local < today:
                 quest.status = QuestStatus.active
                 changed = True
 
         elif quest.quest_type == QuestType.weekly:
-            completed_week = quest.last_completed_at.isocalendar()[:2]
+            completed_week = completed_local.isocalendar()[:2]
             if completed_week < current_week:
                 quest.status = QuestStatus.active
                 changed = True
@@ -166,7 +177,8 @@ async def process_scheduled_habits(db: AsyncSession, user_id: int, redis: Redis)
     """Привычки с расписанием (scheduled_days): пропущенный день расписания
     считается провалом — бьёт по боссу и сбрасывает текущую серию (streak).
     Проверяется лениво при каждом GET /quest, как и mark_overdue_quest_failed."""
-    today = datetime.now(timezone.utc).date()
+    zone = await get_user_zone(db, user_id)
+    today = local_today(zone)
 
     result = await db.execute(
         select(Quest).where(
@@ -181,7 +193,7 @@ async def process_scheduled_habits(db: AsyncSession, user_id: int, redis: Redis)
     total_missed = 0
     changed = False
     for quest in quests:
-        missed = _missed_due_dates(quest, today)
+        missed = _missed_due_dates(quest, today, zone)
         if missed:
             quest.current_streak = 0
             # today ещё не наступил как "прошедший" — отмечаем проверенным по вчера включительно

@@ -62,6 +62,7 @@ async def register(
       username=data.username,
       email=data.email,
       password_hash=hash_password(data.password),
+      timezone=data.timezone,
     )
     db.add(user)
     await db.flush()

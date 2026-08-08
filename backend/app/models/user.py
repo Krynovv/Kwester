@@ -4,6 +4,7 @@ from sqlalchemy import Integer, String, DateTime, Date
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime, timezone
 from ..core.database import Base
+from ..core.timezones import DEFAULT_TIMEZONE
 from typing import TYPE_CHECKING
 from datetime import date
 
@@ -25,6 +26,9 @@ class User(Base):
     password_hash: Mapped[str] = mapped_column(String(200), nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc))
     image_file: Mapped[str | None] = mapped_column(String(200), nullable=True, default=None)
+    # IANA-имя пояса ("Europe/Moscow"). Определяет, где проходит граница суток
+    # для квестов, серий, регена HP и окна боя.
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default=DEFAULT_TIMEZONE, server_default=DEFAULT_TIMEZONE)
     
     currency_balance: Mapped[int] = mapped_column(Integer, default=0)
     current_hp: Mapped[int] = mapped_column(Integer, default=100)
