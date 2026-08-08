@@ -10,6 +10,7 @@ from ..models.user import User
 from ..models.boss import Boss
 from ..models.transaction import TransactionLog, TransactionReason
 from .boss import invalidate_boss_status
+from .character import apply_stat_xp
 from ..core.constant import (
     EXHAUSTED_REWARD_MULTIPLIER,
     OFF_SCHEDULE_HP_PENALTY,
@@ -92,11 +93,7 @@ async def complete_quest(db: AsyncSession, user_id: int, quest_id: int, redis: R
             select(Stat).where(Stat.id.in_(xp_by_stat)).with_for_update().order_by(Stat.id)
         )
         for stat in stat_result.scalars().all():
-            stat.current_xp += xp_by_stat[stat.id]
-            while stat.current_xp >= stat.xp_to_next_level:
-                stat.current_xp -= stat.xp_to_next_level
-                stat.level += 1
-                stat.xp_to_next_level = int(stat.xp_to_next_level * 1.5)
+            apply_stat_xp(stat, xp_by_stat[stat.id])
 
     # Серия (streak) — только для привычек с расписанием.
     if is_scheduled_habit:

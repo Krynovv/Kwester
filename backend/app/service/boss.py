@@ -12,6 +12,7 @@ from ..models.stat import Stat, CombatRole
 from ..models.quest import Quest
 from ..models.transaction import TransactionLog, TransactionReason
 from .inventory import consume_charge
+from .character import apply_stat_xp
 from ..core.constant import (
     BASE_MAX_HP, HP_PER_HEALTH_LEVEL,
     BOSS_BASE_HP, BOSS_HP_PER_LEVEL, BOSS_TIERS, get_boss_name,
@@ -192,11 +193,7 @@ async def fight_boss(db: AsyncSession, user_id: int, redis: Redis) -> BossFight:
         xp_share = WIN_BASE_XP // max(len(default_stats), 1)
 
         for stat in default_stats:
-            stat.current_xp += xp_share
-            while stat.current_xp >= stat.xp_to_next_level:
-                stat.current_xp -= stat.xp_to_next_level
-                stat.level += 1
-                stat.xp_to_next_level = int(stat.xp_to_next_level * 1.5)
+            apply_stat_xp(stat, xp_share)
 
     else:
         deficit_ratio = max(0.0, (boss_hp - damage_dealt) / boss_hp)

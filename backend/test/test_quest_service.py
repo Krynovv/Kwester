@@ -11,6 +11,7 @@ from app.core.constant import (
     OFF_SCHEDULE_HP_PENALTY,
     SECONDARY_STAT_XP_SHARE,
     STREAK_LOOKBACK_DAYS,
+    STAT_LEVEL_XP_BASE,
 )
 from app.service import quest as quest_module
 from app.service.quest import (
@@ -63,15 +64,50 @@ async def test_complete_quest_multiple_level_ups(db_session, user, fake_redis):
     db_session.add(stat)
     await db_session.flush()
 
-    # reward_xp хватит на несколько level-up при пороге 10 (10 -> 15 -> 22...)
-    quest = Quest(user_id=user.id, stat_id=stat.id, name="q3", reward_currency=0, reward_xp=35, quest_type=QuestType.once)
+    # Порог искусственно занижен (10) для 1-го level-up; дальше формула берёт
+    # STAT_LEVEL_XP_BASE/INCREMENT (75, +30 за уровень): 10 -> 105 -> 135.
+    # reward_xp=115 гарантированно закрывает первые два порога (10 + 105 = 115).
+    quest = Quest(user_id=user.id, stat_id=stat.id, name="q3", reward_currency=0, reward_xp=115, quest_type=QuestType.once)
     db_session.add(quest)
     await db_session.flush()
 
     await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(stat)
-    assert stat.level > 1
+    assert stat.level == 3
+
+
+async def test_stat_leveling_pace_stays_linear_not_exponential(db_session, user, fake_redis):
+    """Регрессия для баланса прокачки: раньше порог рос ×1.5 за уровень
+    (7, 10, 15, 23, 33 квеста на уровень — экспоненциальный разгон). Формула
+    теперь линейная (STAT_LEVEL_XP_BASE + level * STAT_LEVEL_XP_INCREMENT),
+    и должна давать ровно +2 квеста на уровень, начиная с 5-ти."""
+    stat = Stat(user_id=user.id, name="Сила", xp_to_next_level=STAT_LEVEL_XP_BASE)
+    db_session.add(stat)
+    await db_session.flush()
+
+    quests_per_level = []
+    since_last_level = 0
+    quest_num = 0
+    while stat.level < 6:
+        quest_num += 1
+        since_last_level += 1
+        quest = Quest(
+            user_id=user.id, stat_id=stat.id, name=f"q{quest_num}",
+            reward_currency=0, reward_xp=15, quest_type=QuestType.once,
+        )
+        db_session.add(quest)
+        await db_session.flush()
+
+        prev_level = stat.level
+        await complete_quest(db_session, user.id, quest.id, fake_redis)
+        await db_session.refresh(stat)
+
+        if stat.level > prev_level:
+            quests_per_level.append(since_last_level)
+            since_last_level = 0
+
+    assert quests_per_level == [5, 7, 9, 11, 13]
 
 
 async def test_cannot_complete_quest_twice(db_session, user, fake_redis):
