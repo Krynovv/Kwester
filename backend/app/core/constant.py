@@ -61,6 +61,13 @@ HEAL_PERCENT = 0.5
 BOSS_STATUS_TTL = 30 # Время актуальности статуса для Redis
 FIGHT_WINDOW_START_HOUR = 17
 
+ALLOWED_AVATAR_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+MAX_AVATAR_SIZE = 5 * 1024 * 1024
+# Потолок на тело любого запроса. Аватар — самая тяжёлая загрузка в API,
+# плюс запас на multipart-обвязку. Проверяется до разбора тела, иначе
+# Starlette успевает слить гигабайты во временный файл на диске.
+MAX_REQUEST_BODY_SIZE = MAX_AVATAR_SIZE + 1024 * 1024
+
 SHOP_ITEMS = {
     "heal_100": {
         "name": "Эликсир полного исцеления",

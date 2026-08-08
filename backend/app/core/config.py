@@ -1,10 +1,9 @@
-from warnings import deprecated
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import SecretStr
 
 class Settings(BaseSettings):
     app_name: str = "Kwester"
-    debug: bool = True
+    debug: bool = False
     database_url: str = "postgresql+asyncpg://user:pass@localhost:5432/qwester"
     test_database_url: str = "postgresql+asyncpg://postgres:postgres@localhost:5432/qwester_test"
     redis_url: str = "redis://localhost:6379/0"

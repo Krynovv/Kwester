@@ -39,9 +39,3 @@ class User(Base):
     boss_fights: Mapped[list["BossFight"]] = relationship(back_populates="users")
     boss: Mapped["Boss | None"] = relationship(back_populates="users")
     inventory_items: Mapped[list["Inventory"]] = relationship(back_populates="users")
-
-    @property
-    def image_path(self) -> str:
-        if self.image_file:
-            return f"media/profile_pics/{self.image_file}"
-        return "/static/profile_pics/default.jpg"

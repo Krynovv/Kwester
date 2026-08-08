@@ -29,6 +29,18 @@ class FakeRedis:
         for key in keys:
             self._data.pop(key, None)
 
+    async def incr(self, key):
+        value = int(self._data.get(key, 0)) + 1
+        self._data[key] = str(value)
+        return value
+
+    async def expire(self, key, seconds):
+        return key in self._data
+
+    async def ttl(self, key):
+        # Реальный TTL не моделируется; -1 = «ключ есть, срок не истекает».
+        return -1 if key in self._data else -2
+
 
 @pytest.fixture
 def fake_redis():
