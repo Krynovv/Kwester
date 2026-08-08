@@ -1,8 +1,10 @@
+import secrets
 from datetime import UTC, datetime, timedelta
 
 import jwt
 from fastapi.security import OAuth2PasswordBearer
 from pwdlib import PasswordHash
+from redis.asyncio import Redis
 
 from .config import settings
 
@@ -10,11 +12,30 @@ password_hash = PasswordHash.recommended()
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/token")
 
+REFRESH_TOKEN_PREFIX = "refresh_token:"
+
 def hash_password(password:str) -> str:
     return password_hash.hash(password)
 
 def verify_password(plain_password:str, hashed_password: str) -> bool:
     return password_hash.verify(plain_password, hashed_password)
+
+def create_refresh_token() -> str:
+    """Generate an opaque, random refresh token (not a JWT)."""
+    return secrets.token_urlsafe(32)
+
+async def store_refresh_token(redis: Redis, token: str, user_id: int) -> None:
+    await redis.set(
+        f"{REFRESH_TOKEN_PREFIX}{token}",
+        str(user_id),
+        ex=timedelta(days=settings.refresh_token_expire_days),
+    )
+
+async def get_user_id_by_refresh_token(redis: Redis, token: str) -> str | None:
+    return await redis.get(f"{REFRESH_TOKEN_PREFIX}{token}")
+
+async def revoke_refresh_token(redis: Redis, token: str) -> None:
+    await redis.delete(f"{REFRESH_TOKEN_PREFIX}{token}")
 
 def create_access_token(data: dict, expires_delta: timedelta | None = None) -> str:
     """

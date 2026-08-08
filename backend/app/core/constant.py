@@ -31,6 +31,13 @@ def get_boss_name(level: int) -> str:
             name = tier_name
     return name
 
+# Порог XP для след. уровня стата = BASE + (level - 1) * INCREMENT.
+# Линейный, не экспоненциальный рост: держит прокачку в районе +2 квеста
+# ("once", 15 XP) на каждый следующий уровень, начиная с 5 квестов на 1-й.
+# BASE должен совпадать с Stat.xp_to_next_level.default.
+STAT_LEVEL_XP_BASE = 75
+STAT_LEVEL_XP_INCREMENT = 30
+
 BASE_MAX_HP = 100
 HP_PER_HEALTH_LEVEL = 10
 HP_REGEN_PERCENT = 0.2              # 20% реген
@@ -51,7 +58,15 @@ WIN_BASE_XP = 50
 HEAL_COST = 20
 HEAL_PERCENT = 0.5
 
+BOSS_STATUS_TTL = 30 # Время актуальности статуса для Redis
 FIGHT_WINDOW_START_HOUR = 17
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+MAX_AVATAR_SIZE = 5 * 1024 * 1024
+# Потолок на тело любого запроса. Аватар — самая тяжёлая загрузка в API,
+# плюс запас на multipart-обвязку. Проверяется до разбора тела, иначе
+# Starlette успевает слить гигабайты во временный файл на диске.
+MAX_REQUEST_BODY_SIZE = MAX_AVATAR_SIZE + 1024 * 1024
 
 SHOP_ITEMS = {
     "heal_100": {

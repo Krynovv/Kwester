@@ -11,6 +11,7 @@ from app.core.constant import (
     OFF_SCHEDULE_HP_PENALTY,
     SECONDARY_STAT_XP_SHARE,
     STREAK_LOOKBACK_DAYS,
+    STAT_LEVEL_XP_BASE,
 )
 from app.service import quest as quest_module
 from app.service.quest import (
@@ -30,19 +31,19 @@ async def user(db_session):
     return u
 
 
-async def test_complete_quest_awards_currency(db_session, user):
+async def test_complete_quest_awards_currency(db_session, user, fake_redis):
     quest = Quest(user_id=user.id, name="q1", reward_currency=15, reward_xp=0, quest_type=QuestType.once)
     db_session.add(quest)
     await db_session.flush()
 
-    result = await complete_quest(db_session, user.id, quest.id)
+    result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     assert result.status == QuestStatus.done
     await db_session.refresh(user)
     assert user.currency_balance == 15
 
 
-async def test_complete_quest_awards_xp_to_stat(db_session, user):
+async def test_complete_quest_awards_xp_to_stat(db_session, user, fake_redis):
     stat = Stat(user_id=user.id, name="Сила", xp_to_next_level=100)
     db_session.add(stat)
     await db_session.flush()
@@ -51,48 +52,83 @@ async def test_complete_quest_awards_xp_to_stat(db_session, user):
     db_session.add(quest)
     await db_session.flush()
 
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(stat)
     assert stat.current_xp == 30
     assert stat.level == 1
 
 
-async def test_complete_quest_multiple_level_ups(db_session, user):
+async def test_complete_quest_multiple_level_ups(db_session, user, fake_redis):
     stat = Stat(user_id=user.id, name="Ловкость", xp_to_next_level=10, level=1)
     db_session.add(stat)
     await db_session.flush()
 
-    # reward_xp хватит на несколько level-up при пороге 10 (10 -> 15 -> 22...)
-    quest = Quest(user_id=user.id, stat_id=stat.id, name="q3", reward_currency=0, reward_xp=35, quest_type=QuestType.once)
+    # Порог искусственно занижен (10) для 1-го level-up; дальше формула берёт
+    # STAT_LEVEL_XP_BASE/INCREMENT (75, +30 за уровень): 10 -> 105 -> 135.
+    # reward_xp=115 гарантированно закрывает первые два порога (10 + 105 = 115).
+    quest = Quest(user_id=user.id, stat_id=stat.id, name="q3", reward_currency=0, reward_xp=115, quest_type=QuestType.once)
     db_session.add(quest)
     await db_session.flush()
 
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(stat)
-    assert stat.level > 1
+    assert stat.level == 3
 
 
-async def test_cannot_complete_quest_twice(db_session, user):
+async def test_stat_leveling_pace_stays_linear_not_exponential(db_session, user, fake_redis):
+    """Регрессия для баланса прокачки: раньше порог рос ×1.5 за уровень
+    (7, 10, 15, 23, 33 квеста на уровень — экспоненциальный разгон). Формула
+    теперь линейная (STAT_LEVEL_XP_BASE + level * STAT_LEVEL_XP_INCREMENT),
+    и должна давать ровно +2 квеста на уровень, начиная с 5-ти."""
+    stat = Stat(user_id=user.id, name="Сила", xp_to_next_level=STAT_LEVEL_XP_BASE)
+    db_session.add(stat)
+    await db_session.flush()
+
+    quests_per_level = []
+    since_last_level = 0
+    quest_num = 0
+    while stat.level < 6:
+        quest_num += 1
+        since_last_level += 1
+        quest = Quest(
+            user_id=user.id, stat_id=stat.id, name=f"q{quest_num}",
+            reward_currency=0, reward_xp=15, quest_type=QuestType.once,
+        )
+        db_session.add(quest)
+        await db_session.flush()
+
+        prev_level = stat.level
+        await complete_quest(db_session, user.id, quest.id, fake_redis)
+        await db_session.refresh(stat)
+
+        if stat.level > prev_level:
+            quests_per_level.append(since_last_level)
+            since_last_level = 0
+
+    assert quests_per_level == [5, 7, 9, 11, 13]
+
+
+async def test_cannot_complete_quest_twice(db_session, user, fake_redis):
     quest = Quest(user_id=user.id, name="q4", quest_type=QuestType.once)
     db_session.add(quest)
     await db_session.flush()
 
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     with pytest.raises(HTTPException) as exc_info:
-        await complete_quest(db_session, user.id, quest.id)
+        await complete_quest(db_session, user.id, quest.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 
-async def test_complete_nonexistent_quest_returns_404(db_session, user):
+async def test_complete_nonexistent_quest_returns_404(db_session, user, fake_redis):
     with pytest.raises(HTTPException) as exc_info:
-        await complete_quest(db_session, user.id, 99999)
+        await complete_quest(db_session, user.id, 99999, fake_redis)
     assert exc_info.value.status_code == 404
 
 
-async def test_complete_other_users_quest_returns_404(db_session, user):
+async def test_complete_other_users_quest_returns_404(db_session, user, fake_redis):
     other_user = User(username="other", email="other@test.com", password_hash=hash_password("password123"))
     db_session.add(other_user)
     await db_session.flush()
@@ -102,16 +138,16 @@ async def test_complete_other_users_quest_returns_404(db_session, user):
     await db_session.flush()
 
     with pytest.raises(HTTPException) as exc_info:
-        await complete_quest(db_session, user.id, quest.id)
+        await complete_quest(db_session, user.id, quest.id, fake_redis)
     assert exc_info.value.status_code == 404
 
 
-async def test_habit_quest_stays_active_after_completion(db_session, user):
+async def test_habit_quest_stays_active_after_completion(db_session, user, fake_redis):
     quest = Quest(user_id=user.id, name="habit q", quest_type=QuestType.habit)
     db_session.add(quest)
     await db_session.flush()
 
-    result = await complete_quest(db_session, user.id, quest.id)
+    result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     assert result.status == QuestStatus.active
 
@@ -150,7 +186,7 @@ async def test_daily_quest_stays_done_same_day(db_session, user):
     assert quest.status == QuestStatus.done
 
 
-async def test_overdue_quest_marked_failed(db_session, user):
+async def test_overdue_quest_marked_failed(db_session, user, fake_redis):
     quest = Quest(
         user_id=user.id,
         name="overdue q",
@@ -161,24 +197,24 @@ async def test_overdue_quest_marked_failed(db_session, user):
     db_session.add(quest)
     await db_session.flush()
 
-    await mark_overdue_quest_failed(db_session, user.id)
+    await mark_overdue_quest_failed(db_session, user.id, fake_redis)
 
     await db_session.refresh(quest)
     assert quest.status == QuestStatus.failed
 
 
-async def test_quest_without_deadline_not_touched(db_session, user):
+async def test_quest_without_deadline_not_touched(db_session, user, fake_redis):
     quest = Quest(user_id=user.id, name="no deadline", quest_type=QuestType.once, status=QuestStatus.active, date_end=None)
     db_session.add(quest)
     await db_session.flush()
 
-    await mark_overdue_quest_failed(db_session, user.id)
+    await mark_overdue_quest_failed(db_session, user.id, fake_redis)
 
     await db_session.refresh(quest)
     assert quest.status == QuestStatus.active
 
 
-async def test_second_stat_gets_a_share_of_xp(db_session, user):
+async def test_second_stat_gets_a_share_of_xp(db_session, user, fake_redis):
     """Основной стат получает полную награду, второй — свою долю.
     Делить награду пополам нельзя: тогда второй слот только замедлял бы прокачку."""
     stat_a = Stat(user_id=user.id, name="Сила", xp_to_next_level=100)
@@ -198,7 +234,7 @@ async def test_second_stat_gets_a_share_of_xp(db_session, user):
     db_session.add(quest)
     await db_session.flush()
 
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(stat_a)
     await db_session.refresh(stat_b)
@@ -206,7 +242,7 @@ async def test_second_stat_gets_a_share_of_xp(db_session, user):
     assert stat_b.current_xp == round(40 * SECONDARY_STAT_XP_SHARE)
 
 
-async def test_only_second_slot_filled_gets_full_xp(db_session, user):
+async def test_only_second_slot_filled_gets_full_xp(db_session, user, fake_redis):
     """Если первый слот пуст, второй стат — фактически основной."""
     stat = Stat(user_id=user.id, name="Здоровье", xp_to_next_level=100)
     db_session.add(stat)
@@ -224,13 +260,13 @@ async def test_only_second_slot_filled_gets_full_xp(db_session, user):
     db_session.add(quest)
     await db_session.flush()
 
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(stat)
     assert stat.current_xp == 40
 
 
-async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, monkeypatch):
+async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, fake_redis, freeze_time):
     quest = Quest(
         user_id=user.id,
         name="зал пн/ср/пт",
@@ -241,21 +277,16 @@ async def test_scheduled_habit_cannot_complete_twice_same_day(db_session, user, 
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)
+    freeze_time(datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc))
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     with pytest.raises(HTTPException) as exc_info:
-        await complete_quest(db_session, user.id, quest.id)
+        await complete_quest(db_session, user.id, quest.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 
-async def test_scheduled_habit_streak_increments_without_gap(db_session, user, monkeypatch):
+async def test_scheduled_habit_streak_increments_without_gap(db_session, user, fake_redis, freeze_time):
     quest = Quest(
         user_id=user.id,
         name="зал",
@@ -269,20 +300,15 @@ async def test_scheduled_habit_streak_increments_without_gap(db_session, user, m
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc)  # среда — следующий день по расписанию
+    freeze_time(datetime(2026, 8, 5, 9, 0, tzinfo=timezone.utc))  # среда — следующий день по расписанию
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    result = await complete_quest(db_session, user.id, quest.id)
+    result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     assert result.current_streak == 2
     assert result.best_streak == 2
 
 
-async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db_session, user, monkeypatch):
+async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db_session, user, fake_redis, freeze_time):
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
 
     quest = Quest(
@@ -299,14 +325,9 @@ async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница — среда пропущена
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))  # пятница — среда пропущена
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    result = await complete_quest(db_session, user.id, quest.id)
+    result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     assert result.current_streak == 1  # серия начата заново
 
@@ -315,7 +336,7 @@ async def test_scheduled_habit_streak_resets_and_penalizes_boss_on_missed_day(db
     assert boss.pending_failures == 1
 
 
-async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, user, monkeypatch):
+async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, user, fake_redis, freeze_time):
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
 
     quest = Quest(
@@ -331,14 +352,9 @@ async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, 
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 6, 9, 0, tzinfo=timezone.utc)  # четверг: среда уже прошла без выполнения
+    freeze_time(datetime(2026, 8, 6, 9, 0, tzinfo=timezone.utc))  # четверг: среда уже прошла без выполнения
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await process_scheduled_habits(db_session, user.id)
+    await process_scheduled_habits(db_session, user.id, fake_redis)
 
     await db_session.refresh(quest)
     assert quest.current_streak == 0
@@ -348,7 +364,7 @@ async def test_process_scheduled_habits_penalizes_missed_day_lazily(db_session, 
     assert boss.pending_failures == 1
 
 
-async def test_missed_days_are_capped_by_lookback_window(db_session, user, monkeypatch):
+async def test_missed_days_are_capped_by_lookback_window(db_session, user, fake_redis, freeze_time):
     """Привычка, у которой streak_checked_until пуст (расписание проставили позже),
     не должна обвалить на пользователя штраф за всю её историю."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -364,21 +380,16 @@ async def test_missed_days_are_capped_by_lookback_window(db_session, user, monke
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await process_scheduled_habits(db_session, user.id)
+    await process_scheduled_habits(db_session, user.id, fake_redis)
 
     boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
     boss = boss_result.scalar_one()
     assert boss.pending_failures == STREAK_LOOKBACK_DAYS
 
 
-async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, monkeypatch):
+async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, fake_redis, freeze_time):
     """Привычку с истёкшим date_end mark_overdue_quest_failed уже наказала один раз —
     дальше она не должна бить по боссу за каждый день расписания."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -395,21 +406,16 @@ async def test_failed_habit_does_not_keep_penalizing_boss(db_session, user, monk
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc)
+    freeze_time(datetime(2026, 8, 10, 9, 0, tzinfo=timezone.utc))
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await process_scheduled_habits(db_session, user.id)
+    await process_scheduled_habits(db_session, user.id, fake_redis)
 
     boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
     boss = boss_result.scalar_one()
     assert boss.pending_failures == 0
 
 
-async def test_off_schedule_completion_costs_hp(db_session, user, monkeypatch):
+async def test_off_schedule_completion_costs_hp(db_session, user, fake_redis, freeze_time):
     """Внеплановое выполнение засчитывается в серию, но снимает HP —
     иначе привычку «только по понедельникам» можно накручивать каждый день."""
     user.current_hp = 100
@@ -424,21 +430,16 @@ async def test_off_schedule_completion_costs_hp(db_session, user, monkeypatch):
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc)  # вторник — не по расписанию
+    freeze_time(datetime(2026, 8, 4, 9, 0, tzinfo=timezone.utc))  # вторник — не по расписанию
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    result = await complete_quest(db_session, user.id, quest.id)
+    result = await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     assert result.current_streak == 1
     await db_session.refresh(user)
     assert user.current_hp == 100 - OFF_SCHEDULE_HP_PENALTY
 
 
-async def test_on_schedule_completion_does_not_cost_hp(db_session, user, monkeypatch):
+async def test_on_schedule_completion_does_not_cost_hp(db_session, user, fake_redis, freeze_time):
     user.current_hp = 100
     quest = Quest(
         user_id=user.id,
@@ -450,20 +451,15 @@ async def test_on_schedule_completion_does_not_cost_hp(db_session, user, monkeyp
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc)  # понедельник
+    freeze_time(datetime(2026, 8, 3, 9, 0, tzinfo=timezone.utc))  # понедельник
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await complete_quest(db_session, user.id, quest.id)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     await db_session.refresh(user)
     assert user.current_hp == 100
 
 
-async def test_get_then_complete_same_day_penalizes_once(db_session, user, monkeypatch):
+async def test_get_then_complete_same_day_penalizes_once(db_session, user, fake_redis, freeze_time):
     """Роутер зовёт process_scheduled_habits перед выдачей списка, а затем
     пользователь жмёт «Выполнить» — один пропуск не должен посчитаться дважды."""
     db_session.add(Boss(user_id=user.id, level=1, pending_failures=0))
@@ -481,15 +477,10 @@ async def test_get_then_complete_same_day_penalizes_once(db_session, user, monke
     db_session.add(quest)
     await db_session.flush()
 
-    class FakeDatetime(datetime):
-        @classmethod
-        def now(cls, tz=None):
-            return datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc)  # пятница, среда пропущена
+    freeze_time(datetime(2026, 8, 7, 9, 0, tzinfo=timezone.utc))  # пятница, среда пропущена
 
-    monkeypatch.setattr(quest_module, "datetime", FakeDatetime)
-
-    await process_scheduled_habits(db_session, user.id)
-    await complete_quest(db_session, user.id, quest.id)
+    await process_scheduled_habits(db_session, user.id, fake_redis)
+    await complete_quest(db_session, user.id, quest.id, fake_redis)
 
     boss_result = await db_session.execute(select(Boss).where(Boss.user_id == user.id))
     boss = boss_result.scalar_one()

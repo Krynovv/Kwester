@@ -1,23 +1,43 @@
-import { useRef } from 'react'
+import { useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Coins, Sword, Heart, Zap, Logout, Package } from 'pixelarticons/react'
+import { Coins, Sword, Heart, Zap, Logout, Package, Clock } from 'pixelarticons/react'
 import { Link } from 'react-router-dom'
-import { fetchMe } from '../api/auth'
+import { fetchMe, logoutRequest } from '../api/auth'
 import { API_BASE_URL } from '../api/client'
 import { useStats } from '../hooks/useStats'
-import { useUploadAvatar } from '../hooks/useUser'
+import { useUpdateMe, useUploadAvatar } from '../hooks/useUser'
 import { useShopItems } from '../hooks/useShop'
 import { useAuthStore } from '../store/authStore'
 import StatsOverview from '../components/StatsOverview'
 import Button from '../components/Button'
+import Select from '../components/Select'
+import {
+  FALLBACK_TIMEZONE,
+  detectTimezone,
+  listTimezones,
+  timezoneLabel,
+} from '../utils/timezone'
 
 export default function ProfilePage() {
   const fileInputRef = useRef(null)
   const logout = useAuthStore((state) => state.logout)
+  const refreshToken = useAuthStore((state) => state.refreshToken)
+
+  const handleLogout = () => {
+    if (refreshToken) logoutRequest(refreshToken).catch(() => {})
+    logout()
+  }
   const { data: user, isLoading } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
   const { data: stats } = useStats()
   const { data: shopItems } = useShopItems()
   const { mutate: upload, isPending: uploading, error: uploadError } = useUploadAvatar()
+  const { mutate: updateProfile, isPending: savingProfile } = useUpdateMe()
+
+  const browserTimezone = detectTimezone()
+  // Список зон строится из Intl и на несколько сотен пунктов — пересобирать
+  // его на каждый ререндер профиля незачем.
+  const timezoneOptions = useMemo(() => listTimezones(user?.timezone), [user?.timezone])
+  const timezoneMismatch = Boolean(user?.timezone) && user.timezone !== browserTimezone
 
   const characterLevel = (stats ?? []).reduce((sum, s) => sum + s.level, 0)
   const ownedItems = (shopItems ?? []).filter((item) => item.owned_charges > 0)
@@ -102,11 +122,45 @@ export default function ProfilePage() {
               {user?.current_hp}
             </span>
           </div>
-          <Button variant="ghost" size="sm" onClick={logout} className="w-full sm:ml-auto sm:w-auto">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full sm:ml-auto sm:w-auto">
             <Logout width={16} height={16} className="mr-2 inline align-text-bottom" />
             Выйти
           </Button>
         </div>
+      </div>
+
+      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
+        <h2 className="mb-1 flex items-center gap-2 font-display text-sm text-gray-100">
+          <Clock width={18} height={18} className="text-cyber-secondary" />
+          ЧАСОВОЙ ПОЯС
+        </h2>
+        <p className="mb-3 font-sans text-sm text-gray-500">
+          По нему считается смена суток: сброс ежедневок, серии привычек и окно боя с боссом.
+        </p>
+
+        <Select
+          value={user?.timezone ?? FALLBACK_TIMEZONE}
+          onChange={(timezone) => updateProfile({ timezone })}
+          options={timezoneOptions}
+          className="max-w-sm"
+        />
+
+        {timezoneMismatch && (
+          <div className="mt-3 flex flex-col gap-2 border-2 border-cyber-gold bg-cyber-bg p-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-sans text-sm text-cyber-gold">
+              Похоже, вы сейчас в {timezoneLabel(browserTimezone)} — сутки считаются не по вашему времени.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={savingProfile}
+              onClick={() => updateProfile({ timezone: browserTimezone })}
+              className="shrink-0"
+            >
+              Обновить
+            </Button>
+          </div>
+        )}
       </div>
 
       <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">

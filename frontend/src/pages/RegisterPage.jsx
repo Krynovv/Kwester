@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useRegister } from '../hooks/useAuth'
 import Button from '../components/Button'
 import PasswordInput from '../components/PasswordInput'
+import { detectTimezone } from '../utils/timezone'
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('')
@@ -13,8 +14,10 @@ export default function RegisterPage() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // Пояс определяем молча: он задаёт границу суток для квестов и серий,
+    // а спрашивать о нём на регистрации — лишний шаг. Поменять можно в профиле.
     mutate(
-      { username, email, password },
+      { username, email, password, timezone: detectTimezone() },
       { onSuccess: () => navigate('/login') }
     )
   }

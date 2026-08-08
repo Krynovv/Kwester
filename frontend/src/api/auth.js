@@ -13,3 +13,9 @@ export const loginUser = async (username, password) => {
 };
 
 export const fetchMe = () => api.get('/users/me').then((r) => r.data);
+
+export const refreshTokens = (refreshToken) =>
+  api.post('/auth/refresh', { refresh_token: refreshToken }).then((r) => r.data);
+
+export const logoutRequest = (refreshToken) =>
+  api.post('/auth/logout', { refresh_token: refreshToken });
