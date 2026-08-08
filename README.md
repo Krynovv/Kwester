@@ -3,6 +3,8 @@
 
 [![Kwester](https://img.shields.io/badge/Заходи_и_играй-Kwester-black?style=for-the-badge)](https://Kwester.quest)
 
+[![CI](https://github.com/Krynovv/Kwester/actions/workflows/ci.yml/badge.svg)](https://github.com/Krynovv/Kwester/actions/workflows/ci.yml)
+
 ## Идея
 + Характеристики персонажа: Сила, Ловкость, Интелект, Фокус, Здоровье
 + Экономика: заработанные награды с квестов можно потратить на придуманное для себя действие в реальной жизни, а выповшая валюта за убийства боссов используется для специальных игровых предметов.

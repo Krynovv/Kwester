@@ -1,0 +1,142 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# Пуш в ветку с открытым PR иначе запускал бы два прогона на один коммит.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Бэкенд — тесты
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: qwester_test
+        ports:
+          - 5432:5432
+        # Без health-check шаги стартуют раньше, чем СУБД примет соединение.
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:8
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      # Settings.secret_key обязателен и без значения роняет импорт приложения.
+      SECRET_KEY: ci-secret-key-not-used-outside-tests
+      TEST_DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/qwester_test
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/qwester_test
+      REDIS_URL: redis://localhost:6379/0
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Установить зависимости
+        run: pip install -r requirements.txt
+
+      - name: Тесты
+        run: pytest -q
+
+  migrations:
+    name: Бэкенд — миграции
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: kwester_migrations
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ci-secret-key-not-used-outside-tests
+      # Отдельная база: тесты пересоздают схему через create_all, и общая с
+      # ними база сделала бы результат проверки миграций случайным.
+      DATABASE_URL: postgresql+asyncpg://postgres:postgres@localhost:5432/kwester_migrations
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: '3.14'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Установить зависимости
+        run: pip install -r requirements.txt
+
+      - name: Накатить миграции с нуля
+        run: alembic upgrade head
+
+      - name: Проверить, что модели и миграции не разошлись
+        # Ловит забытую миграцию: изменили модель, autogenerate не запустили.
+        run: alembic check
+
+  frontend:
+    name: Фронтенд — линт и сборка
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: frontend
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Установить зависимости
+        run: npm ci
+
+      - name: Линт
+        run: npm run lint
+
+      - name: Сборка
+        run: npm run build
