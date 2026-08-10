@@ -9,9 +9,11 @@ export default function ShopSection({ title, description, items, bossCurrencyBal
         <h2 className="font-display text-sm text-gray-200">{title.toUpperCase()}</h2>
         <p className="mt-1 text-sm text-gray-500">{description}</p>
       </div>
-      {items.map((item) => (
-        <ShopItemCard key={item.key} item={item} bossCurrencyBalance={bossCurrencyBalance} />
-      ))}
+      <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+        {items.map((item) => (
+          <ShopItemCard key={item.key} item={item} bossCurrencyBalance={bossCurrencyBalance} />
+        ))}
+      </div>
     </div>
   )
 }
