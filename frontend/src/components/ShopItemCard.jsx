@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
   Heart, Sword, Fire, Shield, Sparkle, Reload, Clock, Eye, Handbag,
-  HumanArmsUp, Target, SpeedFast, Lightbulb, Thermometer,
+  HumanArmsUp, Target, SpeedFast, Lightbulb, Thermometer, ChevronRight,
 } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
 import { CATEGORY_ACCENT } from '../constants/shopCategory'
@@ -27,10 +27,9 @@ const ITEM_ICONS = {
 function accentFor(item) {
   if (item.permanent) return 'var(--color-cyber-gold)'
   // heal_100/extra_boss_fight — расходники без категории (не входят в
-  // offensive/defensive/outcome из shop-design.md). Отдельный оттенок
-  // cyan, не совпадающий с cyber-secondary ("защита") — иначе легенда
-  // категорий будет их описывать неверно.
-  return CATEGORY_ACCENT[item.category] ?? 'var(--color-cyber-cyan)'
+  // offensive/defensive/outcome из shop-design.md). Красный, не cyan —
+  // тот слишком похож на cyber-secondary ("защита") и путался с ней.
+  return CATEGORY_ACCENT[item.category] ?? 'var(--color-cyber-danger)'
 }
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
@@ -74,15 +73,15 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
           className="flip-card-face flex flex-col border-2 border-cyber-border bg-cyber-card"
           style={{ boxShadow: `6px 6px 0 0 ${accent}` }}
         >
-          <div className="flex items-start justify-between gap-2 p-2.5">
+          <div className="flex flex-wrap items-start justify-between gap-x-1.5 gap-y-1 p-2">
             <span
-              className="shrink-0 border px-1.5 py-0.5 text-xs whitespace-nowrap uppercase tracking-wide"
+              className="shrink-0 border px-1 py-0.5 text-[10px] whitespace-nowrap uppercase"
               style={{ color: accent, borderColor: accent }}
             >
               {item.permanent ? 'постоянный' : 'расходник'}
             </span>
-            <span className="flex shrink-0 items-center gap-1 text-sm text-cyber-secondary">
-              <Sword width={14} height={14} />
+            <span className="flex shrink-0 items-center gap-1 text-xs text-cyber-secondary">
+              <Sword width={12} height={12} />
               {item.cost}
             </span>
           </div>
@@ -95,12 +94,9 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
             <Icon width={44} height={44} style={{ color: accent }} className="relative" />
           </div>
 
-          <div className="border-t-2 border-cyber-border p-2.5">
+          <div className="flex items-center justify-between gap-2 border-t-2 border-cyber-border p-2.5">
             <div className="font-display text-[10px] leading-relaxed text-gray-100">{item.name}</div>
-            <div className="mt-1.5 flex items-center gap-1 text-xs text-gray-500">
-              <Clock width={12} height={12} className="opacity-70" />
-              тап — детали
-            </div>
+            <ChevronRight width={14} height={14} className="shrink-0 text-gray-500" />
           </div>
         </div>
 
@@ -109,16 +105,17 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
             <div className="font-display text-[11px] leading-relaxed" style={{ color: accent }}>
               {item.name}
             </div>
-            <p className="flip-card-desc flex-1 text-sm text-gray-200">{item.description}</p>
+            <p className="flip-card-desc flex-1 text-xs leading-relaxed text-gray-200">{item.description}</p>
             <Button
               variant="primary"
+              size="sm"
               onClick={(e) => {
                 e.stopPropagation()
                 purchase(item.key)
               }}
               disabled={!canBuy || isPending}
-              className="w-full shrink-0"
-              style={{ backgroundColor: accent, boxShadow: '4px 4px 0 0 #000' }}
+              className="w-full shrink-0 whitespace-nowrap"
+              style={{ backgroundColor: accent, boxShadow: '4px 4px 0 0 #000', fontSize: '0.75rem' }}
             >
               {buttonLabel}
             </Button>

@@ -27,7 +27,7 @@ CONSUMABLE_CATEGORY_OUTCOME = "outcome"
 
 SHOP_ITEMS = {
     "heal_100": {
-        "name": "Эликсир полного исцеления",
+        "name": "Зелье исцеления",
         "description": "Восстанавливает 100% HP",
         "cost": 45,
         "unlock_level": 5,
@@ -56,7 +56,7 @@ SHOP_ITEMS = {
         "category": CONSUMABLE_CATEGORY_OFFENSIVE,
     },
     "potion_guard": {
-        "name": "Зелье защиты",
+        "name": "Оберег защиты",
         "description": "-15% урона босса на этот бой",
         "cost": 60,
         "unlock_level": 0,
