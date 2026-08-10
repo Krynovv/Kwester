@@ -1,36 +1,8 @@
 import { useState } from 'react'
-import {
-  Heart, Sword, Fire, Shield, Sparkle, Reload, Clock, Eye, Handbag,
-  HumanArmsUp, Target, SpeedFast, Lightbulb, Thermometer, ChevronRight,
-} from 'pixelarticons/react'
+import { Sword, Sparkle, ChevronRight } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
-import { CATEGORY_ACCENT } from '../constants/shopCategory'
+import { ITEM_ICONS, accentFor } from '../constants/itemStyle'
 import Button from './Button'
-
-const ITEM_ICONS = {
-  heal_100: Heart,
-  extra_boss_fight: Sword,
-  potion_rage: Fire,
-  potion_guard: Shield,
-  charm_mercy: Sparkle,
-  token_second_chance: Reload,
-  token_patience: Clock,
-  eye_focus: Eye,
-  bag: Handbag,
-  spec_strength: HumanArmsUp,
-  spec_focus: Target,
-  spec_agility: SpeedFast,
-  spec_intellect: Lightbulb,
-  spec_health: Thermometer,
-}
-
-function accentFor(item) {
-  if (item.permanent) return 'var(--color-cyber-gold)'
-  // heal_100/extra_boss_fight — расходники без категории (не входят в
-  // offensive/defensive/outcome из shop-design.md). Красный, не cyan —
-  // тот слишком похож на cyber-secondary ("защита") и путался с ней.
-  return CATEGORY_ACCENT[item.category] ?? 'var(--color-cyber-danger)'
-}
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
   const [flipped, setFlipped] = useState(false)

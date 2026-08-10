@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { fetchBossStatus, fightBoss } from '../api/boss'
 import { useToastStore } from '../store/toastStore'
+import { useLoadoutStore } from '../store/loadoutStore'
 
 export function useBossStatus() {
   return useQuery({ queryKey: ['boss'], queryFn: fetchBossStatus })
@@ -33,6 +34,8 @@ export function useFightBoss() {
       queryClient.invalidateQueries({ queryKey: ['boss'] })
       queryClient.invalidateQueries({ queryKey: ['me'] })
       queryClient.invalidateQueries({ queryKey: ['stats'] })
+      queryClient.invalidateQueries({ queryKey: ['shop'] })
+      useLoadoutStore.getState().clear()
       addToast(
         result.result === 'won'
           ? `Победа! Урон: ${result.damage_dealt}`
@@ -40,6 +43,7 @@ export function useFightBoss() {
         result.result === 'won' ? 'success' : 'error'
       )
     },
-    onError: () => addToast('Не удалось начать бой', 'error'),
+    onError: (error) =>
+      addToast(error.response?.data?.detail ?? 'Не удалось начать бой', 'error'),
   })
 }

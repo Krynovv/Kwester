@@ -6,10 +6,13 @@ import { fetchMe } from '../api/auth'
 import { API_BASE_URL } from '../api/client'
 import { useStats } from '../hooks/useStats'
 import { useUploadAvatar } from '../hooks/useUser'
-import { useShopItems } from '../hooks/useShop'
+import { useShopItems, useApplyShopItem } from '../hooks/useShop'
 import { useAuthStore } from '../store/authStore'
+import { useLoadoutStore } from '../store/loadoutStore'
+import { USABLE_ITEM_KEYS } from '../constants/itemStyle'
 import StatsOverview from '../components/StatsOverview'
 import Button from '../components/Button'
+import InventoryItemCard from '../components/InventoryItemCard'
 
 export default function ProfilePage() {
   const fileInputRef = useRef(null)
@@ -18,9 +21,18 @@ export default function ProfilePage() {
   const { data: stats } = useStats()
   const { data: shopItems } = useShopItems()
   const { mutate: upload, isPending: uploading, error: uploadError } = useUploadAvatar()
+  const armed = useLoadoutStore((state) => state.armed)
+  const toggleArm = useLoadoutStore((state) => state.toggle)
+  const { mutate: applyItem, isPending: isUsing, variables: usingKey } = useApplyShopItem()
 
   const characterLevel = (stats ?? []).reduce((sum, s) => sum + s.level, 0)
   const ownedItems = (shopItems ?? []).filter((item) => item.owned_charges > 0)
+  const consumableItems = ownedItems.filter((item) => !item.permanent)
+  const permanentItems = ownedItems.filter((item) => item.permanent)
+  // Расходники, которые можно взять в бой — не постоянные и с категорией
+  // (heal_100/extra_boss_fight применяются вне боя, у них category=null).
+  const ownsBag = (shopItems ?? []).some((item) => item.key === 'bag' && item.owned_charges > 0)
+  const itemsByKey = Object.fromEntries((shopItems ?? []).map((item) => [item.key, item]))
 
   const handleFileChange = (e) => {
     const file = e.target.files?.[0]
@@ -120,19 +132,38 @@ export default function ProfilePage() {
           ИНВЕНТАРЬ
         </h2>
         {ownedItems.length ? (
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-4">
-            {ownedItems.map((item) => (
-              <div
-                key={item.key}
-                className="relative flex flex-col items-center gap-2 border-2 border-cyber-secondary bg-cyber-bg p-3 pixel-shadow-secondary"
-              >
-                <Sword width={28} height={28} className="text-cyber-secondary" />
-                <span className="text-center text-sm text-gray-300">{item.name}</span>
-                <span className="absolute -right-2 -top-2 border-2 border-cyber-secondary bg-cyber-card px-1.5 py-0.5 text-xs text-cyber-secondary">
-                  ×{item.owned_charges}
-                </span>
+          <div className="space-y-5">
+            {consumableItems.length > 0 && (
+              <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6">
+                {consumableItems.map((item) => {
+                  const armable = !!item.category
+                  const usable = USABLE_ITEM_KEYS.has(item.key)
+                  return (
+                    <InventoryItemCard
+                      key={item.key}
+                      item={item}
+                      armable={armable}
+                      armed={armed.includes(item.key)}
+                      onToggleArm={armable ? () => toggleArm(item, { ownsBag, itemsByKey }) : undefined}
+                      usable={usable}
+                      onUse={usable ? () => applyItem(item.key) : undefined}
+                      isUsing={usable && isUsing && usingKey === item.key}
+                    />
+                  )
+                })}
               </div>
-            ))}
+            )}
+
+            {permanentItems.length > 0 && (
+              <div className="border-t-2 border-cyber-border pt-5">
+                <h3 className="mb-3 text-xs text-gray-500 uppercase">Постоянные предметы</h3>
+                <div className="grid grid-cols-3 gap-3 sm:grid-cols-4 sm:gap-4 lg:grid-cols-6">
+                  {permanentItems.map((item) => (
+                    <InventoryItemCard key={item.key} item={item} />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ) : (
           <p className="text-gray-500">
