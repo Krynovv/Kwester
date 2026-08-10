@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Sword } from 'pixelarticons/react'
 import { fetchMe } from '../api/auth'
 import { useShopItems } from '../hooks/useShop'
-import ShopItemCard from '../components/ShopItemCard'
+import ShopSection from '../components/ShopSection'
 
 export default function ShopPage() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
@@ -26,15 +26,20 @@ export default function ShopPage() {
       {isLoading ? (
         <p className="text-gray-400">Загрузка...</p>
       ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <ShopItemCard
-              key={item.key}
-              item={item}
-              bossCurrencyBalance={user?.boss_currency_balance ?? 0}
-            />
-          ))}
-        </div>
+        <>
+          <ShopSection
+            title="Расходники"
+            description="Заряд списывается при выборе на конкретный бой."
+            items={items.filter((item) => !item.permanent)}
+            bossCurrencyBalance={user?.boss_currency_balance ?? 0}
+          />
+          <ShopSection
+            title="Постоянные предметы"
+            description="Покупаются один раз и действуют всегда."
+            items={items.filter((item) => item.permanent)}
+            bossCurrencyBalance={user?.boss_currency_balance ?? 0}
+          />
+        </>
       )}
     </div>
   )
