@@ -32,6 +32,7 @@ export default function ShopPage() {
             description="Заряд списывается при выборе на конкретный бой."
             items={items.filter((item) => !item.permanent)}
             bossCurrencyBalance={user?.boss_currency_balance ?? 0}
+            showCategoryLegend
           />
           <ShopSection
             title="Постоянные предметы"

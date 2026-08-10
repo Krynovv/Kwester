@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import {
-  Coins, Heart, Sword, Fire, Shield, Sparkle, Reload, Clock, Eye, Handbag,
+  Heart, Sword, Fire, Shield, Sparkle, Reload, Clock, Eye, Handbag,
   HumanArmsUp, Target, SpeedFast, Lightbulb, Thermometer,
 } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
+import { CATEGORY_ACCENT } from '../constants/shopCategory'
 import Button from './Button'
 
 const ITEM_ICONS = {
@@ -23,17 +24,13 @@ const ITEM_ICONS = {
   spec_health: Thermometer,
 }
 
-// offensive/defensive/outcome — категории расходников из shop-design.md.
-// permanent-предметы категории не имеют (category: null) — красим золотом.
-const CATEGORY_ACCENT = {
-  offensive: 'var(--color-cyber-primary)',
-  defensive: 'var(--color-cyber-secondary)',
-  outcome: 'var(--color-cyber-accent)',
-}
-
 function accentFor(item) {
   if (item.permanent) return 'var(--color-cyber-gold)'
-  return CATEGORY_ACCENT[item.category] ?? 'var(--color-cyber-secondary)'
+  // heal_100/extra_boss_fight — расходники без категории (не входят в
+  // offensive/defensive/outcome из shop-design.md). Отдельный оттенок
+  // cyan, не совпадающий с cyber-secondary ("защита") — иначе легенда
+  // категорий будет их описывать неверно.
+  return CATEGORY_ACCENT[item.category] ?? 'var(--color-cyber-cyan)'
 }
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
@@ -85,7 +82,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
               {item.permanent ? 'постоянный' : 'расходник'}
             </span>
             <span className="flex shrink-0 items-center gap-1 text-sm text-cyber-gold">
-              <Coins width={14} height={14} />
+              <Sword width={14} height={14} />
               {item.cost}
             </span>
           </div>
