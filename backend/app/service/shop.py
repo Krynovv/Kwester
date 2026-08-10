@@ -7,11 +7,12 @@ from ..models.user import User
 from ..models.stat import Stat, CombatRole
 from ..models.transaction import TransactionLog, TransactionReason
 from ..schemas.shop import ShopItemRead
-from .boss import get_boss_level, calculate_max_hp
+from .boss import calculate_max_hp
+from .character import get_character_level
 from .inventory import get_charges, grant_charge
 
 
-async def _to_read(db: AsyncSession, user_id: int, key: str, boss_level: int) -> ShopItemRead:
+async def _to_read(db: AsyncSession, user_id: int, key: str, character_level: int) -> ShopItemRead:
     item = SHOP_ITEMS[key]
     owned = await get_charges(db, user_id, key)
     return ShopItemRead(
@@ -21,14 +22,16 @@ async def _to_read(db: AsyncSession, user_id: int, key: str, boss_level: int) ->
         cost=item["cost"],
         unlock_level=item["unlock_level"],
         repeatable=item["repeatable"],
-        is_unlocked=item["unlock_level"] <= boss_level,
+        is_unlocked=item["unlock_level"] <= character_level,
         owned_charges=owned,
+        permanent=item["permanent"],
+        category=item["category"],
     )
 
 
 async def list_shop_items(db: AsyncSession, user_id: int) -> list[ShopItemRead]:
-    boss_level = await get_boss_level(db, user_id)
-    return [await _to_read(db, user_id, key, boss_level) for key in SHOP_ITEMS]
+    character_level = await get_character_level(db, user_id)
+    return [await _to_read(db, user_id, key, character_level) for key in SHOP_ITEMS]
 
 
 async def _apply_heal_100(db: AsyncSession, user: User) -> None:
@@ -40,9 +43,11 @@ async def _apply_heal_100(db: AsyncSession, user: User) -> None:
     user.current_hp = max_hp
 
 
+# heal_100 применяется сразу при покупке (пьётся на месте). Всё остальное —
+# и старые заряды (extra_boss_fight), и новые боевые предметы — только
+# выдаёт заряд; эффект срабатывает в бою (см. service/fight.py).
 EFFECT_HANDLERS = {
     "heal_100": _apply_heal_100,
-    "extra_boss_fight": lambda db, user: grant_charge(db, user.id, "extra_boss_fight"),
 }
 
 
@@ -51,8 +56,8 @@ async def purchase_item(db: AsyncSession, user_id: int, item_key: str) -> ShopIt
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    boss_level = await get_boss_level(db, user_id)
-    if item["unlock_level"] > boss_level:
+    character_level = await get_character_level(db, user_id)
+    if item["unlock_level"] > character_level:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Item not unlocked yet")
 
     if not item["repeatable"] and await get_charges(db, user_id, item_key) > 0:
@@ -72,7 +77,11 @@ async def purchase_item(db: AsyncSession, user_id: int, item_key: str) -> ShopIt
         reason=TransactionReason.shop_purchased,
     ))
 
-    await EFFECT_HANDLERS[item_key](db, user)
+    handler = EFFECT_HANDLERS.get(item_key)
+    if handler is not None:
+        await handler(db, user)
+    else:
+        await grant_charge(db, user.id, item_key)
 
     await db.commit()
-    return await _to_read(db, user_id, item_key, boss_level)
+    return await _to_read(db, user_id, item_key, character_level)
