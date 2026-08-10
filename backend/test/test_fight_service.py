@@ -11,7 +11,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import HTTPException
 
 from app.core.auth import hash_password
-from app.core.constant import COUNT_ROUND, MIN_FIGHT_HP_PERCENT
+from app.core.constant import COUNT_ROUND, MIN_FIGHT_HP_PERCENT, BOSS_LEVEL_GAP_CAP
 from app.models.boss import Boss
 from app.models.boss_fight import BossFight, FightStatus, FightActor
 from app.models.stat import Stat, CombatRole
@@ -134,6 +134,41 @@ async def test_ko_ends_fight_and_levels_boss(db_session, fighter, fake_redis, in
             Boss.__table__.select().where(Boss.user_id == fighter.id)
         )).first()
         assert boss.level > 3                   # босс подрос за победу
+
+
+async def test_boss_level_growth_is_capped_by_player_level(
+    db_session, fighter, fake_redis, in_window, monkeypatch,
+):
+    """Без потолка серия поражений подряд разгоняла бы разрыв без ограничений
+    (документ: +4 уровня разрыва уже дают 7.7 раунда на убийство при лимите
+    в 7). Статы fighter — уровень 5, потолок — round(5) + BOSS_LEVEL_GAP_CAP."""
+    import app.service.combat as combat_module
+    from app.service.inventory import grant_charge
+
+    # Детерминируем попадания босса — иначе тест зависел бы от случайных
+    # промахов (BOSS_HIT_CHANCE_MIN=0.45 на промах никуда не девается).
+    monkeypatch.setattr(combat_module, "hit_chance_on_player", lambda evasion, boss_level: 1.0)
+
+    for i in range(6):
+        if i > 0:
+            await grant_charge(db_session, fighter.id, "extra_boss_fight")
+        # Реген не сработает второй раз в тот же (замоканный) день — лечим
+        # руками, иначе P0-порог MIN_FIGHT_HP_PERCENT заблокирует follow-up бой.
+        fighter.current_hp = 100
+        await db_session.commit()
+
+        fight = await start_fight(db_session, fighter.id, fake_redis)
+        fight.player_hp = 1
+        fight.boss_hp = fight.boss_max_hp * 100     # чтобы игрок точно не добил
+        await db_session.commit()
+
+        fight = await take_turn(db_session, fighter.id, PlayerAction.attack, fake_redis)
+        assert fight.status is FightStatus.lost
+
+    boss = (await db_session.execute(
+        Boss.__table__.select().where(Boss.user_id == fighter.id)
+    )).first()
+    assert boss.level == 5 + BOSS_LEVEL_GAP_CAP
 
 
 async def test_fight_ends_after_round_limit(db_session, fighter, fake_redis, in_window):

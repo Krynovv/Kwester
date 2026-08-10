@@ -21,7 +21,7 @@ from redis.asyncio import Redis
 
 from ..core.constant import (
     COUNT_ROUND, FIGHT_TTL_MINUTES, MIN_FIGHT_HP_PERCENT,
-    FIGHT_WINDOW_START_HOUR, DEATH_BOSS_LEVEL_GAIN,
+    FIGHT_WINDOW_START_HOUR, DEATH_BOSS_LEVEL_GAIN, BOSS_LEVEL_GAP_CAP,
     TIMEOUT_POINTS_WIN_REWARD, STAT_XP_GROWTH,
     WIN_BASE_CURRENCY, WIN_CURRENCY_PER_BOSS_LEVEL, WIN_CURRENCY_PER_INTELLECT,
     WIN_BASE_XP,
@@ -278,7 +278,13 @@ async def _finish(
     else:
         boss.pending_failures += DEATH_BOSS_LEVEL_GAIN
 
-    boss.level += boss.pending_failures
+    # Разрыв с игроком не должен расти бесконечно: иначе отставший игрок
+    # никогда не догоняет (см. BOSS_LEVEL_GAP_CAP).
+    player_avg_level = fight.stats_snapshot["avg_level"]
+    boss.level = min(
+        boss.level + boss.pending_failures,
+        round(player_avg_level) + BOSS_LEVEL_GAP_CAP,
+    )
     boss.pending_failures = 0
 
 
