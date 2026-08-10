@@ -7,18 +7,21 @@ export function useBossStatus() {
 }
 
 // When can the player fight next? null means "right now".
+// Returns an epoch-ms number, not a Date — callers put this straight into a
+// useEffect dependency array (via useCountdown), and a fresh `new Date(...)`
+// on every call would be a new reference each render even when the moment
+// it represents hasn't changed, re-firing the effect every render and
+// looping forever ("Maximum update depth exceeded").
 export function getNextFightTime(boss) {
   if (boss.fight_window_open && !boss.already_fought_today) return null
 
   const now = new Date()
-  const todayAt17 = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 17, 0, 0))
+  const todayAt17 = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate(), 17, 0, 0)
 
   if (!boss.fight_window_open) return todayAt17
 
   // Window is open but already fought — next chance is 17:00 UTC tomorrow.
-  const tomorrowAt17 = new Date(todayAt17)
-  tomorrowAt17.setUTCDate(tomorrowAt17.getUTCDate() + 1)
-  return tomorrowAt17
+  return todayAt17 + 24 * 60 * 60 * 1000
 }
 
 export function useFightBoss() {
