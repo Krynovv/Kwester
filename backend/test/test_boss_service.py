@@ -11,15 +11,21 @@ from app.core.constant import (
     BASE_MAX_HP, HP_PER_HEALTH_LEVEL, COUNT_ROUND, BOSS_TARGET_KILL_ROUNDS,
     BOSS_KILL_ROUNDS_SLACKER, BOSS_HP_REFERENCE_EFFORT, QUEST_EFFORT_CAP,
 )
-from app.core.constant_shop import HEAL_COST
+from app.core.constant import CRIT_MULTIPLIER
+from app.core.constant_shop import (
+    HEAL_COST, SPEC_STRENGTH_ATTACK_MULTIPLIER, SPEC_FOCUS_ACCURACY_MULTIPLIER,
+    SPEC_AGILITY_EVASION_MULTIPLIER, SPEC_INTELLECT_CRIT_BONUS,
+    EYE_FOCUS_CRIT_MULTIPLIER, SPEC_HEALTH_REGEN_BONUS,
+)
 from app.service.boss import (
     get_boss_status, heal, calculate_max_hp, calculate_boss_hp,
-    invalidate_boss_status,
+    invalidate_boss_status, ensure_hp_regen, load_combat_profile,
 )
 from app.service.combat import (
     build_player_combat, calculate_boss_attack, expected_damage_per_round,
     hit_chance_on_player,
 )
+from app.service.inventory import grant_charge
 
 
 @pytest.fixture
@@ -159,3 +165,74 @@ async def test_boss_status_is_cached_and_invalidated(client, db_session, user_wi
 
     await invalidate_boss_status(fake_redis, user_with_boss.id)
     assert len(fake_redis._data) == 0        # инвалидация действительно чистит
+
+
+# ────────────────── Постоянные предметы (artifacts/shop-design.md) ──────────────────
+
+def test_spec_items_boost_matching_stats_only():
+    level = 6
+    base = build_player_combat({role: level for role in CombatRole}, {})
+
+    strength = build_player_combat({role: level for role in CombatRole}, {}, frozenset({"spec_strength"}))
+    assert strength.attack == pytest.approx(base.attack * SPEC_STRENGTH_ATTACK_MULTIPLIER)
+    assert strength.accuracy == base.accuracy and strength.evasion == base.evasion
+
+    focus = build_player_combat({role: level for role in CombatRole}, {}, frozenset({"spec_focus"}))
+    assert focus.accuracy == pytest.approx(base.accuracy * SPEC_FOCUS_ACCURACY_MULTIPLIER)
+
+    agility = build_player_combat({role: level for role in CombatRole}, {}, frozenset({"spec_agility"}))
+    assert agility.evasion == pytest.approx(base.evasion * SPEC_AGILITY_EVASION_MULTIPLIER)
+
+    intellect = build_player_combat({role: level for role in CombatRole}, {}, frozenset({"spec_intellect"}))
+    assert intellect.crit_chance == pytest.approx(base.crit_chance + SPEC_INTELLECT_CRIT_BONUS)
+
+
+def test_eye_focus_changes_crit_multiplier_not_boss_hp_reference():
+    """eye_focus должен усиливать только фактический урон игрока. Если бы он
+    протекал в calculate_boss_hp (эталон), прокачка обнулила бы сама себя —
+    тот же класс бага, что стережёт test_quests_and_evasion_are_not_self_cancelling."""
+    level = 6
+    without = build_player_combat({role: level for role in CombatRole}, {})
+    with_item = build_player_combat({role: level for role in CombatRole}, {}, frozenset({"eye_focus"}))
+
+    assert without.crit_multiplier == CRIT_MULTIPLIER
+    assert with_item.crit_multiplier == EYE_FOCUS_CRIT_MULTIPLIER
+    # HP босса считается от avg_level, а не от crit_multiplier — эталон не сдвинулся
+    assert calculate_boss_hp(without.avg_level, level) == calculate_boss_hp(with_item.avg_level, level)
+
+
+async def test_load_combat_profile_picks_up_owned_specializations(db_session, user_with_boss):
+    await grant_charge(db_session, user_with_boss.id, "spec_strength")
+    await db_session.commit()
+
+    today = datetime.now(timezone.utc).date()
+    without = build_player_combat({role: 1 for role in CombatRole}, {})
+    profile = await load_combat_profile(db_session, user_with_boss.id, today)
+
+    assert profile.attack == pytest.approx(without.attack * SPEC_STRENGTH_ATTACK_MULTIPLIER)
+
+
+async def test_spec_health_boosts_daily_regen(db_session, user_with_boss, fake_redis):
+    plain_user = User(username="noregen", email="noregen@test.com", password_hash=hash_password("password123"))
+    db_session.add(plain_user)
+    await db_session.flush()
+    for name, role in {
+        "Сила": CombatRole.strength, "Ловкость": CombatRole.agility,
+        "Интелект": CombatRole.intellect, "Фокус": CombatRole.focus,
+        "Здоровье": CombatRole.health,
+    }.items():
+        db_session.add(Stat(user_id=plain_user.id, name=name, combat_role=role, is_default=True, level=1))
+
+    await grant_charge(db_session, user_with_boss.id, "spec_health")
+
+    for user in (user_with_boss, plain_user):
+        user.current_hp = 0
+        user.hp_regen_date = None
+    await db_session.commit()
+
+    await ensure_hp_regen(db_session, user_with_boss.id)
+    await ensure_hp_regen(db_session, plain_user.id)
+
+    await db_session.refresh(user_with_boss)
+    await db_session.refresh(plain_user)
+    assert user_with_boss.current_hp > plain_user.current_hp

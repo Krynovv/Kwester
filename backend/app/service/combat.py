@@ -33,6 +33,11 @@ from ..core.constant import (
     BOSS_DAMAGE_REFERENCE_HIT,
     BOSS_DODGE_RATING_PER_LEVEL, BOSS_ACCURACY_RATING_PER_LEVEL,
 )
+from ..core.constant_shop import (
+    SPEC_STRENGTH_ATTACK_MULTIPLIER, SPEC_FOCUS_ACCURACY_MULTIPLIER,
+    SPEC_AGILITY_EVASION_MULTIPLIER, SPEC_INTELLECT_CRIT_BONUS,
+    EYE_FOCUS_CRIT_MULTIPLIER,
+)
 from ..models.stat import CombatRole
 
 
@@ -60,22 +65,40 @@ class PlayerCombat:
     max_hp: int             # Здоровье
     avg_level: float        # средний уровень боевых статов — масштаб босса
     diligence: float        # 0..1, средний effort по всем статам за день
+    # eye_focus меняет фактический крит игрока, не эталон урона босса
+    # (calculate_boss_hp продолжает использовать глобальный CRIT_MULTIPLIER) —
+    # иначе прокачка крита задним числом подняла бы HP босса и обнулила себя.
+    crit_multiplier: float = CRIT_MULTIPLIER
 
 
 def build_player_combat(
     levels: dict[CombatRole, int],
     quests_completed: dict[CombatRole, int],
+    owned_permanent: frozenset[str] = frozenset(),
 ) -> PlayerCombat:
     efforts = {role: quest_effort(quests_completed.get(role, 0)) for role in CombatRole}
     power = {role: stat_power(levels.get(role, 0), efforts[role]) for role in CombatRole}
 
+    attack = power[CombatRole.strength]
+    accuracy = power[CombatRole.focus]
+    evasion = power[CombatRole.agility]
     crit = CRIT_CHANCE_BASE + CRIT_CHANCE_PER_INTELLECT_LEVEL * power[CombatRole.intellect]
 
+    if "spec_strength" in owned_permanent:
+        attack *= SPEC_STRENGTH_ATTACK_MULTIPLIER
+    if "spec_focus" in owned_permanent:
+        accuracy *= SPEC_FOCUS_ACCURACY_MULTIPLIER
+    if "spec_agility" in owned_permanent:
+        evasion *= SPEC_AGILITY_EVASION_MULTIPLIER
+    if "spec_intellect" in owned_permanent:
+        crit += SPEC_INTELLECT_CRIT_BONUS
+
     return PlayerCombat(
-        attack=power[CombatRole.strength],
-        accuracy=power[CombatRole.focus],
-        evasion=power[CombatRole.agility],
+        attack=attack,
+        accuracy=accuracy,
+        evasion=evasion,
         crit_chance=_clamp(crit, CRIT_CHANCE_BASE, CRIT_CHANCE_MAX),
+        crit_multiplier=EYE_FOCUS_CRIT_MULTIPLIER if "eye_focus" in owned_permanent else CRIT_MULTIPLIER,
         max_hp=calculate_max_hp(levels.get(CombatRole.health, 0)),
         avg_level=sum(levels.get(role, 0) for role in CombatRole) / len(CombatRole),
         diligence=sum(efforts.values()) / len(efforts),
@@ -190,7 +213,7 @@ def resolve_player_turn(
 
     crit = rng.random() < crit_chance
     # Округляем один раз в самом конце, floor: иначе дроби текут через все шаги.
-    damage = max(1, math.floor(attack * (CRIT_MULTIPLIER if crit else 1.0)))
+    damage = max(1, math.floor(attack * (player.crit_multiplier if crit else 1.0)))
 
     return TurnOutcome(
         hit=True,

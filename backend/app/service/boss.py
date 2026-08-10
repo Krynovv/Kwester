@@ -14,11 +14,12 @@ from ..core.constant import (
     get_boss_name, HP_REGEN_PERCENT, COUNT_ROUND,
     FIGHT_WINDOW_START_HOUR, BOSS_STATUS_CACHE_TTL
 )
-from ..core.constant_shop import HEAL_COST, HEAL_PERCENT
+from ..core.constant_shop import HEAL_COST, HEAL_PERCENT, SPEC_HEALTH_REGEN_BONUS
 from .combat import (
     PlayerCombat, build_player_combat, calculate_max_hp, calculate_boss_hp,
     expected_damage_per_round,
 )
+from .inventory import get_owned_permanent_items
 
 __all__ = ["calculate_max_hp", "calculate_boss_hp", "get_boss_level",
            "get_boss_status", "heal", "ensure_hp_regen",
@@ -64,8 +65,9 @@ async def load_combat_profile(db: AsyncSession, user_id: int, today: date) -> Pl
         .group_by(Stat.combat_role)
     )
     quests_completed = {role: count for role, count in quests_result.all()}
+    owned_permanent = frozenset(await get_owned_permanent_items(db, user_id))
 
-    return build_player_combat(levels, quests_completed)
+    return build_player_combat(levels, quests_completed, owned_permanent)
 
 
 async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
@@ -80,15 +82,20 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     health_stat = await _get_stat_by_role(db, user_id, CombatRole.health)
     max_hp = calculate_max_hp(health_stat.level if health_stat else 0)
 
+    owned_permanent = await get_owned_permanent_items(db, user_id)
+    regen_percent = HP_REGEN_PERCENT + (
+        SPEC_HEALTH_REGEN_BONUS if "spec_health" in owned_permanent else 0
+    )
+
     if user.hp_regen_date is None:
         days_passed = 1
     else:
-        days_passed = (today - user.hp_regen_date).days 
-    
+        days_passed = (today - user.hp_regen_date).days
+
     for _ in range(max(days_passed, 0)):
         if user.current_hp >= max_hp:
             break
-        user.current_hp = min(max_hp, user.current_hp + round(max_hp * HP_REGEN_PERCENT))
+        user.current_hp = min(max_hp, user.current_hp + round(max_hp * regen_percent))
     
     user.hp_regen_date = today
     await db.commit()
