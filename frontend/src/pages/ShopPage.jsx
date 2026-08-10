@@ -2,6 +2,7 @@ import { useQuery } from '@tanstack/react-query'
 import { Sword } from 'pixelarticons/react'
 import { fetchMe } from '../api/auth'
 import { useShopItems } from '../hooks/useShop'
+import { sortByCategory } from '../constants/shopCategory'
 import ShopSection from '../components/ShopSection'
 
 export default function ShopPage() {
@@ -30,7 +31,7 @@ export default function ShopPage() {
           <ShopSection
             title="Расходники"
             description="Заряд списывается при выборе на конкретный бой."
-            items={items.filter((item) => !item.permanent)}
+            items={sortByCategory(items.filter((item) => !item.permanent))}
             bossCurrencyBalance={user?.boss_currency_balance ?? 0}
             showCategoryLegend
           />

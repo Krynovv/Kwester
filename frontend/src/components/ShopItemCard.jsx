@@ -81,7 +81,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
             >
               {item.permanent ? 'постоянный' : 'расходник'}
             </span>
-            <span className="flex shrink-0 items-center gap-1 text-sm text-cyber-gold">
+            <span className="flex shrink-0 items-center gap-1 text-sm text-cyber-secondary">
               <Sword width={14} height={14} />
               {item.cost}
             </span>
