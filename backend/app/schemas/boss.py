@@ -21,6 +21,12 @@ class TurnRequest(BaseModel):
     action: PlayerAction
 
 
+class FightStartRequest(BaseModel):
+    # Ключи SHOP_ITEMS расходников (permanent=False), выбранные на этот бой.
+    # Без "сумки" — не больше одного; с ней — до двух из разных категорий.
+    consumables: list[str] = []
+
+
 class RoundRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -45,4 +51,5 @@ class FightRead(BaseModel):
     player_hp: int
     player_max_hp: int
     damage_dealt: int
+    active_consumables: list[str]
     rounds: list[RoundRead]

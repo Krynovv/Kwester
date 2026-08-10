@@ -11,7 +11,7 @@
 """
 
 import secrets
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from datetime import datetime, timedelta, timezone
 
 from fastapi import HTTPException, status as http_status
@@ -26,6 +26,11 @@ from ..core.constant import (
     WIN_BASE_CURRENCY, WIN_CURRENCY_PER_BOSS_LEVEL, WIN_CURRENCY_PER_INTELLECT,
     WIN_BASE_XP,
 )
+from ..core.constant_shop import (
+    SHOP_ITEMS, FIGHT_CONSUMABLE_KEYS,
+    RAGE_POTION_DILIGENCE_MULTIPLIER, GUARD_POTION_DAMAGE_REDUCTION,
+    SECOND_CHANCE_REVIVE_HP_PERCENT, PATIENCE_EXTRA_ROUNDS,
+)
 from ..models.boss import Boss
 from ..models.boss_fight import (
     BossFight, BossFightRound, FightStatus, FightActor, PlayerActionType,
@@ -38,7 +43,7 @@ from .combat import (
     PlayerCombat, PlayerAction, calculate_boss_hp, calculate_boss_attack,
     resolve_player_turn, resolve_boss_turn, round_rng,
 )
-from .inventory import consume_charge
+from .inventory import consume_charge, get_charges
 
 
 def _now() -> datetime:
@@ -88,7 +93,59 @@ def _resolve_on_points(fight: BossFight) -> tuple[FightStatus, float]:
     return FightStatus.timeout, 0.0
 
 
-async def start_fight(db: AsyncSession, user_id: int, redis: Redis) -> BossFight:
+async def _prepare_consumables(db: AsyncSession, user_id: int, keys: list[str]) -> None:
+    """Валидирует и списывает заряды выбранных на этот бой расходников.
+
+    Правило "сумки": без неё — не больше одного расходника; с ней — до двух,
+    и только из разных категорий. Иначе, например, защита + знак шанса
+    складываются в фактическую неуязвимость (см. artifacts/shop-design.md).
+    """
+    if not keys:
+        return
+    if len(keys) != len(set(keys)):
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail="Один и тот же расходник дважды в бой не берут",
+        )
+    for key in keys:
+        if key not in FIGHT_CONSUMABLE_KEYS:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f"{key} нельзя взять в бой как расходник",
+            )
+
+    if len(keys) > 1:
+        if len(keys) > 2:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Не больше двух расходников за бой",
+            )
+        if await get_charges(db, user_id, "bag") <= 0:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Второй расходник требует сумку",
+            )
+        categories = [SHOP_ITEMS[k]["category"] for k in keys]
+        if len(set(categories)) != len(categories):
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail="Расходники должны быть из разных категорий",
+            )
+
+    for key in keys:
+        if await get_charges(db, user_id, key) <= 0:
+            raise HTTPException(
+                status_code=http_status.HTTP_400_BAD_REQUEST,
+                detail=f"Нет заряда: {key}",
+            )
+    for key in keys:
+        await consume_charge(db, user_id, key)
+
+
+async def start_fight(
+    db: AsyncSession, user_id: int, redis: Redis, consumables: list[str] | None = None,
+) -> BossFight:
+    consumables = consumables or []
     await ensure_hp_regen(db, user_id)
 
     now = _now()
@@ -120,6 +177,8 @@ async def start_fight(db: AsyncSession, user_id: int, redis: Redis) -> BossFight
                 detail="Сегодня уже дрался",
             )
 
+    await _prepare_consumables(db, user_id, consumables)
+
     boss_result = await db.execute(
         select(Boss).where(Boss.user_id == user_id).with_for_update()
     )
@@ -140,6 +199,16 @@ async def start_fight(db: AsyncSession, user_id: int, redis: Redis) -> BossFight
             detail="Слишком мало HP для боя — подлечись или подожди сутки",
         )
 
+    # Ярость/защита фиксируются на старте, как и весь остальной профиль —
+    # закрытый посреди боя квест или купленный предмет не должны влиять
+    # на уже идущий бой задним числом.
+    if "potion_rage" in consumables:
+        profile = replace(profile, attack=profile.attack * (1 + RAGE_POTION_DILIGENCE_MULTIPLIER * profile.diligence))
+
+    boss_attack = calculate_boss_attack(profile.max_hp, profile.diligence)
+    if "potion_guard" in consumables:
+        boss_attack = round(boss_attack * (1 - GUARD_POTION_DAMAGE_REDUCTION))
+
     boss_hp = calculate_boss_hp(profile.avg_level, boss.level)
     fight = BossFight(
         user_id=user_id,
@@ -147,11 +216,12 @@ async def start_fight(db: AsyncSession, user_id: int, redis: Redis) -> BossFight
         boss_level_at_time=boss.level,
         boss_max_hp=boss_hp,
         boss_hp=boss_hp,
-        boss_attack=calculate_boss_attack(profile.max_hp, profile.diligence),
+        boss_attack=boss_attack,
         player_hp_start=user.current_hp,
         player_hp=user.current_hp,
         player_max_hp=profile.max_hp,
         stats_snapshot=asdict(profile),
+        active_consumables=consumables,
         rng_seed=secrets.token_hex(16),
         status=FightStatus.active,
         current_round=1,
@@ -233,13 +303,24 @@ async def take_turn(
         ))
 
         if fight.player_hp <= 0:
-            await _finish(db, fight, FightStatus.lost)
-            await db.commit()
-            await db.refresh(fight)
-            await invalidate_boss_status(redis, user_id)
-            return fight
+            if "token_second_chance" in fight.active_consumables:
+                fight.player_hp = round(fight.player_max_hp * SECOND_CHANCE_REVIVE_HP_PERCENT)
+                # Переприсваиваем список целиком — JSON-колонка не видит
+                # мутации in-place (.remove/.pop) как изменение.
+                fight.active_consumables = [
+                    key for key in fight.active_consumables if key != "token_second_chance"
+                ]
+            else:
+                await _finish(db, fight, FightStatus.lost)
+                await db.commit()
+                await db.refresh(fight)
+                await invalidate_boss_status(redis, user_id)
+                return fight
 
-    if round_no >= COUNT_ROUND:
+    round_limit = COUNT_ROUND + (
+        PATIENCE_EXTRA_ROUNDS if "token_patience" in fight.active_consumables else 0
+    )
+    if round_no >= round_limit:
         await _finish(db, fight, *_resolve_on_points(fight))
     else:
         fight.current_round = round_no + 1
@@ -275,7 +356,7 @@ async def _finish(
     elif result is FightStatus.timeout:
         # Босс выстоял — награды нет, но и уровень не растёт: это не поражение.
         pass
-    else:
+    elif "charm_mercy" not in fight.active_consumables:
         boss.pending_failures += DEATH_BOSS_LEVEL_GAIN
 
     # Разрыв с игроком не должен расти бесконечно: иначе отставший игрок

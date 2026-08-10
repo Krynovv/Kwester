@@ -12,12 +12,18 @@ from fastapi import HTTPException
 
 from app.core.auth import hash_password
 from app.core.constant import COUNT_ROUND, MIN_FIGHT_HP_PERCENT, BOSS_LEVEL_GAP_CAP
+from app.core.constant_shop import (
+    RAGE_POTION_DILIGENCE_MULTIPLIER, GUARD_POTION_DAMAGE_REDUCTION,
+    SECOND_CHANCE_REVIVE_HP_PERCENT, PATIENCE_EXTRA_ROUNDS,
+)
 from app.models.boss import Boss
 from app.models.boss_fight import BossFight, FightStatus, FightActor
+from app.models.quest import Quest, QuestType, QuestStatus
 from app.models.stat import Stat, CombatRole
 from app.models.user import User
 from app.service.combat import PlayerAction
 from app.service.fight import start_fight, take_turn, get_active_fight
+from app.service.inventory import grant_charge, get_charges
 
 IN_WINDOW = datetime(2026, 1, 1, 18, 0, tzinfo=timezone.utc)
 
@@ -225,3 +231,158 @@ async def test_excuse_deals_no_damage(db_session, fighter, fake_redis, in_window
     assert fight.boss_hp == before
     player_round = next(r for r in fight.rounds if r.actor is FightActor.player)
     assert player_round.damage == 0
+
+
+# ─────────────────────── Расходники (artifacts/shop-design.md) ───────────────────────
+
+async def test_consumable_without_charge_rejected(db_session, fighter, fake_redis, in_window):
+    with pytest.raises(HTTPException) as exc:
+        await start_fight(db_session, fighter.id, fake_redis, ["potion_rage"])
+    assert exc.value.status_code == 400
+
+
+async def test_consumable_charge_is_spent_on_fight_start(db_session, fighter, fake_redis, in_window):
+    await grant_charge(db_session, fighter.id, "potion_rage")
+    await db_session.commit()
+
+    await start_fight(db_session, fighter.id, fake_redis, ["potion_rage"])
+
+    assert await get_charges(db_session, fighter.id, "potion_rage") == 0
+
+
+async def test_second_consumable_requires_bag(db_session, fighter, fake_redis, in_window):
+    await grant_charge(db_session, fighter.id, "potion_rage")
+    await grant_charge(db_session, fighter.id, "potion_guard")
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await start_fight(db_session, fighter.id, fake_redis, ["potion_rage", "potion_guard"])
+    assert exc.value.status_code == 400
+
+
+async def test_bag_allows_two_different_categories(db_session, fighter, fake_redis, in_window):
+    for key in ("potion_rage", "potion_guard", "bag"):
+        await grant_charge(db_session, fighter.id, key)
+    await db_session.commit()
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["potion_rage", "potion_guard"])
+
+    assert set(fight.active_consumables) == {"potion_rage", "potion_guard"}
+
+
+async def test_bag_rejects_same_category_pair(db_session, fighter, fake_redis, in_window):
+    """Без правила "разных категорий" защита + знак шанса складываются в
+    почти неуязвимость (см. документ) — сумка не должна такое разрешать."""
+    for key in ("potion_guard", "token_second_chance", "bag"):  # оба defensive
+        await grant_charge(db_session, fighter.id, key)
+    await db_session.commit()
+
+    with pytest.raises(HTTPException) as exc:
+        await start_fight(db_session, fighter.id, fake_redis, ["potion_guard", "token_second_chance"])
+    assert exc.value.status_code == 400
+
+
+async def test_rage_scales_with_diligence(db_session, fighter, fake_redis, in_window):
+    """Ярость привязана к усердию: ноль закрытых квестов — ноль эффекта."""
+    from app.service.boss import load_combat_profile
+
+    stat_row = (await db_session.execute(
+        Stat.__table__.select().where(Stat.user_id == fighter.id, Stat.combat_role == CombatRole.strength)
+    )).first()
+    db_session.add(Quest(
+        user_id=fighter.id, stat_id=stat_row.id, name="q", quest_type=QuestType.once,
+        status=QuestStatus.done, last_completed_at=IN_WINDOW,
+    ))
+    await grant_charge(db_session, fighter.id, "potion_rage")
+    await db_session.commit()
+
+    baseline = await load_combat_profile(db_session, fighter.id, IN_WINDOW.date())
+    assert baseline.diligence > 0  # sanity: квест реально засчитался
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["potion_rage"])
+
+    expected_attack = baseline.attack * (1 + RAGE_POTION_DILIGENCE_MULTIPLIER * baseline.diligence)
+    assert fight.stats_snapshot["attack"] == pytest.approx(expected_attack)
+    assert fight.stats_snapshot["attack"] > baseline.attack
+
+
+async def test_guard_reduces_boss_attack(db_session, fighter, fake_redis, in_window):
+    from app.service.boss import load_combat_profile
+    from app.service.combat import calculate_boss_attack
+
+    await grant_charge(db_session, fighter.id, "potion_guard")
+    await db_session.commit()
+
+    profile = await load_combat_profile(db_session, fighter.id, datetime.now(timezone.utc).date())
+    baseline_boss_attack = calculate_boss_attack(profile.max_hp, profile.diligence)
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["potion_guard"])
+
+    assert fight.boss_attack == round(baseline_boss_attack * (1 - GUARD_POTION_DAMAGE_REDUCTION))
+    assert fight.boss_attack < baseline_boss_attack
+
+
+async def test_patience_extends_round_limit(db_session, fighter, fake_redis, in_window):
+    await grant_charge(db_session, fighter.id, "token_patience")
+    await db_session.commit()
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["token_patience"])
+    fight.boss_hp = 10 ** 6          # никто никого не убьёт
+    fight.boss_attack = 0
+    await db_session.commit()
+    assert fight.active_consumables == ["token_patience"]
+
+    for _ in range(COUNT_ROUND + PATIENCE_EXTRA_ROUNDS - 1):
+        fight = await take_turn(db_session, fighter.id, PlayerAction.excuse, fake_redis)
+    assert fight.status is FightStatus.active   # обычный лимit (7) уже позади
+
+    fight = await take_turn(db_session, fighter.id, PlayerAction.excuse, fake_redis)
+    assert fight.status is not FightStatus.active
+
+
+async def test_second_chance_revives_once(db_session, fighter, fake_redis, in_window, monkeypatch):
+    import app.service.combat as combat_module
+
+    await grant_charge(db_session, fighter.id, "token_second_chance")
+    await db_session.commit()
+    # Детерминируем попадания босса, иначе воскрешение может не понадобиться
+    # (промах) и тест ничего не проверит.
+    monkeypatch.setattr(combat_module, "hit_chance_on_player", lambda evasion, boss_level: 1.0)
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["token_second_chance"])
+    fight.player_hp = 1
+    fight.boss_hp = fight.boss_max_hp * 100
+    await db_session.commit()
+
+    fight = await take_turn(db_session, fighter.id, PlayerAction.attack, fake_redis)
+
+    assert fight.status is FightStatus.active
+    assert fight.player_hp == round(fight.player_max_hp * SECOND_CHANCE_REVIVE_HP_PERCENT)
+    assert "token_second_chance" not in fight.active_consumables
+
+    # второй раз уже не спасает
+    fight.player_hp = 1
+    await db_session.commit()
+    fight = await take_turn(db_session, fighter.id, PlayerAction.attack, fake_redis)
+    assert fight.status is FightStatus.lost
+
+
+async def test_mercy_prevents_boss_level_growth_on_loss(db_session, fighter, fake_redis, in_window, monkeypatch):
+    import app.service.combat as combat_module
+
+    await grant_charge(db_session, fighter.id, "charm_mercy")
+    await db_session.commit()
+    monkeypatch.setattr(combat_module, "hit_chance_on_player", lambda evasion, boss_level: 1.0)
+
+    fight = await start_fight(db_session, fighter.id, fake_redis, ["charm_mercy"])
+    fight.player_hp = 1
+    fight.boss_hp = fight.boss_max_hp * 100
+    await db_session.commit()
+
+    fight = await take_turn(db_session, fighter.id, PlayerAction.attack, fake_redis)
+    assert fight.status is FightStatus.lost
+
+    boss = (await db_session.execute(
+        Boss.__table__.select().where(Boss.user_id == fighter.id)
+    )).first()
+    assert boss.level == 3   # fighter стартует с level=3 — не подрос

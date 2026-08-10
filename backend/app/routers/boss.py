@@ -5,7 +5,7 @@ from ..core.database import get_db
 from ..core.redis import get_redis
 from ..core.deps import get_current_user
 from ..models.user import User
-from ..schemas.boss import BossStatus, FightRead, TurnRequest
+from ..schemas.boss import BossStatus, FightRead, TurnRequest, FightStartRequest
 from ..schemas.user import UserRead
 from ..service.boss import get_boss_status, heal
 from ..service.fight import start_fight, take_turn, get_active_fight
@@ -24,12 +24,13 @@ async def boss_status(
 
 @router.post("/fight", response_model=FightRead, status_code=status.HTTP_201_CREATED)
 async def boss_fight_start(
+    payload: FightStartRequest = FightStartRequest(),
     db: AsyncSession = Depends(get_db),
     redis: Redis = Depends(get_redis),
     current_user: User = Depends(get_current_user),
 ):
     """Начинает бой. Ходы делаются через POST /boss/fight/turn."""
-    return await start_fight(db, current_user.id, redis)
+    return await start_fight(db, current_user.id, redis, payload.consumables)
 
 
 @router.get("/fight", response_model=FightRead)

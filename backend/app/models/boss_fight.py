@@ -60,6 +60,12 @@ class BossFight(Base):
     # Броски выводятся из seed — бой воспроизводим, ход нельзя перекатить.
     rng_seed: Mapped[str] = mapped_column(String(64))
 
+    # Расходники, выбранные на старте боя (SHOP_ITEMS ключи, permanent=False).
+    # Список меняется в ходе боя (напр. token_second_chance вычищается после
+    # срабатывания) — менять только через переприсваивание всего списка,
+    # JSON-колонка не отслеживает мутации in-place.
+    active_consumables: Mapped[list[str]] = mapped_column(JSON, default=list)
+
     status: Mapped[FightStatus] = mapped_column(Enum(FightStatus), default=FightStatus.active)
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     damage_dealt: Mapped[int] = mapped_column(Integer, default=0)
