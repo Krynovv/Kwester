@@ -5,9 +5,14 @@ import { useShopItems } from '../hooks/useShop'
 import { sortByCategory } from '../constants/shopCategory'
 import ShopSection from '../components/ShopSection'
 
+// Скрыто с витрины по просьбе — сам предмет и его эффект (доп. бой через
+// заряд в service/fight.py) на бэкенде не трогали, только не показываем карточку.
+const HIDDEN_ITEM_KEYS = new Set(['extra_boss_fight'])
+
 export default function ShopPage() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  const { data: items, isLoading } = useShopItems()
+  const { data: rawItems, isLoading } = useShopItems()
+  const items = rawItems?.filter((item) => !HIDDEN_ITEM_KEYS.has(item.key))
 
   return (
     <div className="space-y-6">
