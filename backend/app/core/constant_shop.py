@@ -30,7 +30,7 @@ SHOP_ITEMS = {
         "name": "Зелье исцеления",
         "description": "Восстанавливает 100% HP",
         "cost": 45,
-        "unlock_level": 5,
+        "unlock_level": 0,
         "repeatable": True,
         "permanent": False,
         "category": None,
@@ -112,7 +112,7 @@ SHOP_ITEMS = {
         "category": None,
     },
     "spec_strength": {
-        "name": "Специализация силы",
+        "name": "Путь силы",
         "description": "+5% к урону атаки",
         "cost": 250,
         "unlock_level": 0,
@@ -121,7 +121,7 @@ SHOP_ITEMS = {
         "category": None,
     },
     "spec_focus": {
-        "name": "Специализация фокуса",
+        "name": "Путь фокуса",
         "description": "+10% к точности",
         "cost": 250,
         "unlock_level": 0,
@@ -130,7 +130,7 @@ SHOP_ITEMS = {
         "category": None,
     },
     "spec_agility": {
-        "name": "Специализация ловкости",
+        "name": "Путь ловкости",
         "description": "+15% к уклонению",
         "cost": 250,
         "unlock_level": 0,
@@ -139,7 +139,7 @@ SHOP_ITEMS = {
         "category": None,
     },
     "spec_intellect": {
-        "name": "Специализация интеллекта",
+        "name": "Путь интеллекта",
         "description": "+3 п.п. к шансу крита",
         "cost": 250,
         "unlock_level": 0,
@@ -148,7 +148,7 @@ SHOP_ITEMS = {
         "category": None,
     },
     "spec_health": {
-        "name": "Специализация здоровья",
+        "name": "Путь здоровья",
         "description": "+5 п.п. к дневному регену HP",
         "cost": 250,
         "unlock_level": 0,
