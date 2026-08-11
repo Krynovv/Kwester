@@ -137,6 +137,84 @@ svg {
   animation: level-up-pulse 1s steps(6, end);
 }
 
+/* Флип-карточка магазина: 3D-переворот по клику/тапу (не hover — на
+   телефоне его нет физически), бегущая неоновая рамка на обороте.
+   Цвет задаётся снаружи через --flip-accent (по категории предмета). */
+.flip-card {
+  perspective: 900px;
+}
+
+.flip-card-inner {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  transition: transform 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2);
+  transform-style: preserve-3d;
+}
+
+.flip-card.is-flipped .flip-card-inner {
+  transform: rotateY(180deg);
+}
+
+.flip-card-face {
+  position: absolute;
+  inset: 0;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+  overflow: hidden;
+}
+
+.flip-card-back {
+  transform: rotateY(180deg);
+}
+
+.flip-card-back::before {
+  content: '';
+  position: absolute;
+  inset: -60%;
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--flip-accent, var(--color-cyber-primary)) 18deg,
+    transparent 46deg,
+    transparent 360deg
+  );
+  animation: flip-card-spin 3600ms linear infinite;
+  filter: blur(2px);
+}
+
+.flip-card-back::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  background: var(--color-cyber-card);
+}
+
+@keyframes flip-card-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Описание на обороте может оказаться длиннее карточки — само уходит в
+   скролл (с фейдом-подсказкой), а не выталкивает кнопку покупки за
+   overflow:hidden. See: artifacts preview session, было ровно так. */
+.flip-card-desc {
+  overflow-y: auto;
+  min-height: 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--flip-accent, var(--color-cyber-primary)) transparent;
+  mask-image: linear-gradient(to bottom, black calc(100% - 14px), transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black calc(100% - 14px), transparent 100%);
+}
+
+.flip-card-desc::-webkit-scrollbar {
+  width: 4px;
+}
+
+.flip-card-desc::-webkit-scrollbar-thumb {
+  background: var(--flip-accent, var(--color-cyber-primary));
+}
+
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

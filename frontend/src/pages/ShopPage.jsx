@@ -2,11 +2,17 @@ import { useQuery } from '@tanstack/react-query'
 import { Sword } from 'pixelarticons/react'
 import { fetchMe } from '../api/auth'
 import { useShopItems } from '../hooks/useShop'
-import ShopItemCard from '../components/ShopItemCard'
+import { sortByCategory } from '../constants/shopCategory'
+import ShopSection from '../components/ShopSection'
+
+// Скрыто с витрины по просьбе — сам предмет и его эффект (доп. бой через
+// заряд в service/fight.py) на бэкенде не трогали, только не показываем карточку.
+const HIDDEN_ITEM_KEYS = new Set(['extra_boss_fight'])
 
 export default function ShopPage() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
-  const { data: items, isLoading } = useShopItems()
+  const { data: rawItems, isLoading } = useShopItems()
+  const items = rawItems?.filter((item) => !HIDDEN_ITEM_KEYS.has(item.key))
 
   return (
     <div className="space-y-6">
@@ -26,15 +32,21 @@ export default function ShopPage() {
       {isLoading ? (
         <p className="text-gray-400">Загрузка...</p>
       ) : (
-        <div className="space-y-3">
-          {items.map((item) => (
-            <ShopItemCard
-              key={item.key}
-              item={item}
-              bossCurrencyBalance={user?.boss_currency_balance ?? 0}
-            />
-          ))}
-        </div>
+        <>
+          <ShopSection
+            title="Расходники"
+            description="Заряд списывается при выборе на конкретный бой."
+            items={sortByCategory(items.filter((item) => !item.permanent))}
+            bossCurrencyBalance={user?.boss_currency_balance ?? 0}
+            showCategoryLegend
+          />
+          <ShopSection
+            title="Постоянные предметы"
+            description="Покупаются один раз и действуют всегда."
+            items={items.filter((item) => item.permanent)}
+            bossCurrencyBalance={user?.boss_currency_balance ?? 0}
+          />
+        </>
       )}
     </div>
   )

@@ -71,7 +71,10 @@ def freeze_time(monkeypatch):
         import app.service.quest as quest_module
 
         for module in (timezones_module, quest_module, boss_module):
-            monkeypatch.setattr(module, "datetime", FrozenDatetime)
+            # raising=False: boss.py больше не читает datetime.now() напрямую
+            # (всё через core.timezones), так что там нет своего атрибута
+            # datetime на уровне модуля — патчить нечего, но и не ошибка.
+            monkeypatch.setattr(module, "datetime", FrozenDatetime, raising=False)
         return FrozenDatetime
 
     return _freeze

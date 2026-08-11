@@ -14,10 +14,12 @@ from sqlalchemy import select
 from app.core.auth import hash_password
 from app.core.timezones import resolve_zone, to_local_date
 from app.models.boss import Boss
+from app.models.boss_fight import FightStatus
 from app.models.quest import Quest, QuestStatus, QuestType
 from app.models.stat import Stat, CombatRole
 from app.models.user import User
-from app.service.boss import fight_boss, get_boss_status
+from app.service.boss import get_boss_status
+from app.service.fight import start_fight
 from app.service.quest import complete_quest, refresh_recurring_quests
 
 MOSCOW = "Europe/Moscow"
@@ -215,8 +217,8 @@ async def test_fight_window_opens_on_local_hour(
     # хотя по UTC ещё закрыто.
     freeze_time(datetime(2026, 8, 8, 15, 0, tzinfo=timezone.utc))
 
-    fight = await fight_boss(db_session, moscow_fighter.id, fake_redis)
-    assert fight.result == "lost"  # урона нет, важен сам факт допуска к бою
+    fight = await start_fight(db_session, moscow_fighter.id, fake_redis)
+    assert fight.status == FightStatus.active  # важен сам факт допуска к бою
     assert fight.fight_date == date(2026, 8, 8)
 
 
@@ -252,7 +254,7 @@ async def test_fight_rejected_before_local_window(
     freeze_time(datetime(2026, 8, 8, 19, 0, tzinfo=timezone.utc))
 
     with pytest.raises(HTTPException) as exc_info:
-        await fight_boss(db_session, new_york_fighter.id, fake_redis)
+        await start_fight(db_session, new_york_fighter.id, fake_redis)
     assert exc_info.value.status_code == 400
 
 

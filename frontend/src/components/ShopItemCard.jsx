@@ -1,47 +1,98 @@
-import { Sword } from 'pixelarticons/react'
+import { useState } from 'react'
+import { Sword, Sparkle, ChevronRight } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
+import { ITEM_ICONS, accentFor } from '../constants/itemStyle'
 import Button from './Button'
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
+  const [flipped, setFlipped] = useState(false)
   const { mutate: purchase, isPending } = usePurchaseShopItem()
 
+  // Гейт по уровню персонажа временно не показываем в UI (бэкенд всё равно
+  // отклонит покупку 400-й, если предмет не разблокирован) — до
+  // отдельного решения по тому, как это подавать.
+  const alreadyOwned = !item.repeatable && item.owned_charges > 0
   const canAfford = bossCurrencyBalance >= item.cost
-  const canBuy = item.is_unlocked && canAfford
+  const canBuy = canAfford && !alreadyOwned
 
-  let buttonLabel = 'Купить'
+  let buttonLabel = `Купить · ${item.cost}`
   if (isPending) buttonLabel = 'Покупаем...'
-  else if (!item.is_unlocked) buttonLabel = `Откроется на ${item.unlock_level} ур. босса`
+  else if (alreadyOwned) buttonLabel = 'Куплено'
   else if (!canAfford) buttonLabel = 'Не хватает валюты'
+
+  const Icon = ITEM_ICONS[item.key] ?? Sparkle
+  const accent = accentFor(item)
+  const toggle = () => setFlipped((f) => !f)
 
   return (
     <div
-      className={`rounded-none border-2 p-4 ${
-        item.is_unlocked ? 'border-cyber-border bg-cyber-card' : 'border-cyber-border bg-cyber-card/50 opacity-60'
-      }`}
+      role="button"
+      tabIndex={0}
+      aria-pressed={flipped}
+      aria-label={`${item.name} — подробнее`}
+      onClick={toggle}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          toggle()
+        }
+      }}
+      className={`flip-card aspect-[3/4] min-w-0 cursor-pointer ${flipped ? 'is-flipped' : ''}`}
+      style={{ '--flip-accent': accent }}
     >
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h3 className="font-medium text-gray-100">{item.name}</h3>
-          <p className="mt-1 text-sm text-gray-400">{item.description}</p>
-          <div className="mt-2 flex items-center gap-3 text-sm">
-            <span className="flex items-center gap-1 text-cyber-secondary">
-              <Sword width={16} height={16} />
+      <div className="flip-card-inner">
+        <div
+          className="flip-card-face flex flex-col border-2 border-cyber-border bg-cyber-card"
+          style={{ boxShadow: `6px 6px 0 0 ${accent}` }}
+        >
+          <div className="flex flex-wrap items-start justify-between gap-x-1.5 gap-y-1 p-2">
+            <span
+              className="shrink-0 border px-1 py-0.5 text-[10px] whitespace-nowrap uppercase"
+              style={{ color: accent, borderColor: accent }}
+            >
+              {item.permanent ? 'постоянный' : 'расходник'}
+            </span>
+            <span className="flex shrink-0 items-center gap-1 text-xs text-cyber-secondary">
+              <Sword width={12} height={12} />
               {item.cost}
             </span>
-            {item.owned_charges > 0 && (
-              <span className="text-cyber-accent">Заряды: {item.owned_charges}</span>
-            )}
+          </div>
+
+          <div className="relative grid flex-1 place-items-center">
+            <div
+              className="absolute h-16 w-16 rounded-full opacity-40 blur-2xl"
+              style={{ backgroundColor: accent }}
+            />
+            <Icon width={44} height={44} style={{ color: accent }} className="relative" />
+          </div>
+
+          <div className="flex items-center justify-between gap-2 border-t-2 border-cyber-border p-2.5">
+            <div className="font-display text-[10px] leading-relaxed text-gray-100">{item.name}</div>
+            <ChevronRight width={14} height={14} className="shrink-0 text-gray-500" />
           </div>
         </div>
 
-        <Button
-          variant="primary"
-          onClick={() => purchase(item.key)}
-          disabled={!canBuy || isPending}
-          className="w-full sm:w-auto sm:shrink-0"
-        >
-          {buttonLabel}
-        </Button>
+        <div className="flip-card-back flip-card-face flex flex-col p-3">
+          <div className="relative z-1 flex h-full flex-col gap-2">
+            <div className="font-display text-[11px] leading-relaxed" style={{ color: accent }}>
+              {item.name}
+            </div>
+            <p className="flip-card-desc flex-1 text-xs leading-relaxed text-gray-200">{item.description}</p>
+            <Button
+              variant="primary"
+              size="sm"
+              onClick={(e) => {
+                e.stopPropagation()
+                purchase(item.key)
+              }}
+              disabled={!canBuy || isPending}
+              className="w-full shrink-0 whitespace-nowrap"
+              style={{ backgroundColor: accent, boxShadow: '4px 4px 0 0 #000', fontSize: '0.75rem' }}
+            >
+              {buttonLabel}
+            </Button>
+          </div>
+        </div>
       </div>
     </div>
   )

@@ -7,7 +7,7 @@ from ..core.deps import get_current_user
 from ..core.redis import get_redis
 from ..models.user import User
 from ..schemas.shop import ShopItemRead
-from ..service.shop import list_shop_items, purchase_item
+from ..service.shop import list_shop_items, purchase_item, use_item
 
 router = APIRouter(prefix="/shop", tags=["shop"])
 
@@ -23,6 +23,14 @@ async def purchase(
     item_key: str,
     db: AsyncSession = Depends(get_db),
     current_user: User = Depends(get_current_user),
+):
+    return await purchase_item(db, current_user.id, item_key)
+
+@router.post("/{item_key}/use", response_model=ShopItemRead)
+async def use(
+    item_key: str,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
     redis: Redis = Depends(get_redis),
 ):
-    return await purchase_item(db, current_user.id, item_key, redis)
+    return await use_item(db, current_user.id, item_key, redis)

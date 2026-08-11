@@ -9,3 +9,5 @@ class ShopItemRead(BaseModel):
     repeatable: bool
     is_unlocked: bool
     owned_charges: int
+    permanent: bool
+    category: str | None

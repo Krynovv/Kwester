@@ -3,16 +3,17 @@ from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..core.constant import SHOP_ITEMS
+from ..core.constant_shop import SHOP_ITEMS
 from ..models.user import User
 from ..models.stat import Stat, CombatRole
 from ..models.transaction import TransactionLog, TransactionReason
 from ..schemas.shop import ShopItemRead
-from .boss import get_boss_level, calculate_max_hp, invalidate_boss_status
-from .inventory import get_charges, grant_charge
+from .boss import calculate_max_hp, invalidate_boss_status
+from .character import get_character_level
+from .inventory import consume_charge, get_charges, grant_charge
 
 
-async def _to_read(db: AsyncSession, user_id: int, key: str, boss_level: int) -> ShopItemRead:
+async def _to_read(db: AsyncSession, user_id: int, key: str, character_level: int) -> ShopItemRead:
     item = SHOP_ITEMS[key]
     owned = await get_charges(db, user_id, key)
     return ShopItemRead(
@@ -22,14 +23,16 @@ async def _to_read(db: AsyncSession, user_id: int, key: str, boss_level: int) ->
         cost=item["cost"],
         unlock_level=item["unlock_level"],
         repeatable=item["repeatable"],
-        is_unlocked=item["unlock_level"] <= boss_level,
+        is_unlocked=item["unlock_level"] <= character_level,
         owned_charges=owned,
+        permanent=item["permanent"],
+        category=item["category"],
     )
 
 
 async def list_shop_items(db: AsyncSession, user_id: int) -> list[ShopItemRead]:
-    boss_level = await get_boss_level(db, user_id)
-    return [await _to_read(db, user_id, key, boss_level) for key in SHOP_ITEMS]
+    character_level = await get_character_level(db, user_id)
+    return [await _to_read(db, user_id, key, character_level) for key in SHOP_ITEMS]
 
 
 async def _apply_heal_100(db: AsyncSession, user: User) -> None:
@@ -41,19 +44,23 @@ async def _apply_heal_100(db: AsyncSession, user: User) -> None:
     user.current_hp = max_hp
 
 
-EFFECT_HANDLERS = {
+# Расходники без боевой категории (сейчас — только heal_100) пьются не
+# сразу при покупке, а вручную из инвентаря через use_item: иначе зелье
+# исцеления тратится впустую, если HP и так почти полное. Боевые
+# расходники (FIGHT_CONSUMABLE_KEYS) сюда не входят — их эффект срабатывает
+# в бою (см. service/fight.py), а не через этот эндпоинт.
+USE_HANDLERS = {
     "heal_100": _apply_heal_100,
-    "extra_boss_fight": lambda db, user: grant_charge(db, user.id, "extra_boss_fight"),
 }
 
 
-async def purchase_item(db: AsyncSession, user_id: int, item_key: str, redis: Redis) -> ShopItemRead:
+async def purchase_item(db: AsyncSession, user_id: int, item_key: str) -> ShopItemRead:
     item = SHOP_ITEMS.get(item_key)
     if item is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
 
-    boss_level = await get_boss_level(db, user_id)
-    if item["unlock_level"] > boss_level:
+    character_level = await get_character_level(db, user_id)
+    if item["unlock_level"] > character_level:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Item not unlocked yet")
 
     if not item["repeatable"] and await get_charges(db, user_id, item_key) > 0:
@@ -73,9 +80,35 @@ async def purchase_item(db: AsyncSession, user_id: int, item_key: str, redis: Re
         reason=TransactionReason.shop_purchased,
     ))
 
-    await EFFECT_HANDLERS[item_key](db, user)
+    await grant_charge(db, user.id, item_key)
 
     await db.commit()
-    # heal_100 меняет current_hp — то же поле кэшируется в статусе босса.
+    return await _to_read(db, user_id, item_key, character_level)
+
+
+async def use_item(db: AsyncSession, user_id: int, item_key: str, redis: Redis) -> ShopItemRead:
+    item = SHOP_ITEMS.get(item_key)
+    if item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Item not found")
+
+    handler = USE_HANDLERS.get(item_key)
+    if handler is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Этот предмет применяется в бою, а не из инвентаря",
+        )
+
+    if not await consume_charge(db, user_id, item_key):
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Нет заряда")
+
+    result = await db.execute(select(User).where(User.id == user_id).with_for_update())
+    user = result.scalar_one()
+    await handler(db, user)
+
+    await db.commit()
+    # handler'ы двигают current_hp (сейчас — только _apply_heal_100), а он
+    # часть закэшированного boss:status — без инвалидации GET /boss/status
+    # ещё до BOSS_STATUS_CACHE_TTL секунд отдавал бы старое HP.
     await invalidate_boss_status(redis, user_id)
-    return await _to_read(db, user_id, item_key, boss_level)
+    character_level = await get_character_level(db, user_id)
+    return await _to_read(db, user_id, item_key, character_level)
