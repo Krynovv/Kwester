@@ -32,21 +32,27 @@ export default function InventoryItemCard({ item, armable, armed, onToggleArm, u
 
   let actionBadge = <span />
   if (item.permanent) {
+    // Постоянные предметы всегда "включены" — тот же чекбокс, сразу в
+    // заполненном виде (галочка нужна: заливка тут не переключается кликом,
+    // без неё квадрат было бы не отличить от чистого декора).
     actionBadge = (
-      <span className="shrink-0 border p-0.5" style={{ color: accent, borderColor: accent }}>
-        <Check width={8} height={8} />
+      <span
+        className="flex h-3 w-3 shrink-0 items-center justify-center border-2"
+        style={{ borderColor: accent, backgroundColor: accent }}
+      >
+        <Check width={8} height={8} className="text-cyber-bg" />
       </span>
     )
   } else if (armable) {
+    // Тот же квадратный чекбокс, что и в форме наград (uiverse.io/arthur_6104/sharp-puma-27):
+    // пустая рамка -> сплошная заливка при "в бою", цветом самого предмета
+    // (не единым cyber-secondary — иначе все выбранные предметы сливаются
+    // в один цвет и перестаёт быть видно, какой именно взят).
     actionBadge = (
       <span
-        className={`flex h-3 w-3 shrink-0 items-center justify-center border ${
-          armed ? 'bg-cyber-secondary text-cyber-bg' : ''
-        }`}
-        style={armed ? undefined : { borderColor: accent }}
-      >
-        {armed && <Check width={8} height={8} />}
-      </span>
+        className="h-3 w-3 shrink-0 border-2"
+        style={{ borderColor: accent, backgroundColor: armed ? accent : 'transparent' }}
+      />
     )
   } else if (usable) {
     actionBadge = (
@@ -76,7 +82,7 @@ export default function InventoryItemCard({ item, armable, armed, onToggleArm, u
     </>
   )
 
-  const boxShadow = armed ? '6px 6px 0 0 var(--color-cyber-secondary)' : `6px 6px 0 0 ${accent}`
+  const boxShadow = `6px 6px 0 0 ${accent}`
 
   if (!interactive) {
     return (
@@ -108,8 +114,8 @@ export default function InventoryItemCard({ item, armable, armed, onToggleArm, u
       }}
       className={`flex aspect-[3/4] min-h-0 min-w-0 flex-col border-2 bg-cyber-card ${
         usable && isUsing ? 'cursor-wait opacity-70' : 'cursor-pointer'
-      } ${armed ? 'border-cyber-secondary' : 'border-cyber-border'}`}
-      style={{ boxShadow }}
+      }`}
+      style={{ boxShadow, borderColor: armed ? accent : 'var(--color-cyber-border)' }}
     >
       {content}
     </div>

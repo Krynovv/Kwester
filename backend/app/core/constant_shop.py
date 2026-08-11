@@ -67,7 +67,7 @@ SHOP_ITEMS = {
     "charm_mercy": {
         "name": "Знак пощады",
         "description": "После поражения босс не получает уровень",
-        "cost": 120,
+        "cost": 15,
         "unlock_level": 0,
         "repeatable": True,
         "permanent": False,
