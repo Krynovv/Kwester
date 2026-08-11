@@ -1,40 +1,11 @@
-import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useStats } from '../hooks/useStats'
-import { useToastStore } from '../store/toastStore'
+import { useLevelUpToasts } from '../hooks/useLevelUpToasts'
 import { statStyle, defaultStatStyle } from '../constants/statStyle'
 
 export default function StatsOverview() {
   const { data: stats, isLoading } = useStats()
-  const addToast = useToastStore((state) => state.addToast)
-
-  const [prevLevels, setPrevLevels] = useState({})
-  const [leveledUpIds, setLeveledUpIds] = useState([])
-
-  // Pure comparison against last render's levels, done during render itself
-  // (React's recommended way to "adjust state when data changes" — no Effect needed for this part).
-  if (stats) {
-    const nextLevels = Object.fromEntries(stats.map((s) => [s.id, s.level]))
-    const changed = stats.some((s) => nextLevels[s.id] !== prevLevels[s.id])
-    if (changed) {
-      const newlyLeveled = stats
-        .filter((s) => prevLevels[s.id] !== undefined && s.level > prevLevels[s.id])
-        .map((s) => s.id)
-      setPrevLevels(nextLevels)
-      setLeveledUpIds(newlyLeveled)
-    }
-  }
-
-  // Impure side effects (toast + timed pulse reset) react to the detected level-ups.
-  useEffect(() => {
-    if (leveledUpIds.length === 0 || !stats) return
-    for (const id of leveledUpIds) {
-      const stat = stats.find((s) => s.id === id)
-      if (stat) addToast(`«${stat.name}» повысил уровень: ${stat.level}!`, 'success')
-    }
-    const timer = setTimeout(() => setLeveledUpIds([]), 1000)
-    return () => clearTimeout(timer)
-  }, [leveledUpIds, stats, addToast])
+  const leveledUpIds = useLevelUpToasts(stats)
 
   if (isLoading) return <p className="text-gray-400">Загрузка статов...</p>
 

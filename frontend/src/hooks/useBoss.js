@@ -1,10 +1,15 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { fetchBossStatus, fightBoss } from '../api/boss'
+import { fetchBossStatus, fetchActiveFight, fightBoss, takeTurn } from '../api/boss'
 import { useToastStore } from '../store/toastStore'
 import { useLoadoutStore } from '../store/loadoutStore'
 
 export function useBossStatus() {
   return useQuery({ queryKey: ['boss'], queryFn: fetchBossStatus })
+}
+
+// null, пока бой не начат; после старта — активный FightRead с раундами.
+export function useActiveFight() {
+  return useQuery({ queryKey: ['activeFight'], queryFn: fetchActiveFight })
 }
 
 // When can the player fight next? null means "right now".
@@ -25,25 +30,45 @@ export function getNextFightTime(boss) {
   return todayAt17 + 24 * 60 * 60 * 1000
 }
 
+// Старт боя — только создаёт активный FightRead (без result/damage_dealt,
+// это ещё не исход). Сами раунды — через useTakeTurn.
 export function useFightBoss() {
   const queryClient = useQueryClient()
   const addToast = useToastStore((state) => state.addToast)
   return useMutation({
     mutationFn: fightBoss,
-    onSuccess: (result) => {
+    onSuccess: (fight) => {
+      queryClient.setQueryData(['activeFight'], fight)
       queryClient.invalidateQueries({ queryKey: ['boss'] })
-      queryClient.invalidateQueries({ queryKey: ['me'] })
-      queryClient.invalidateQueries({ queryKey: ['stats'] })
-      queryClient.invalidateQueries({ queryKey: ['shop'] })
-      useLoadoutStore.getState().clear()
-      addToast(
-        result.result === 'won'
-          ? `Победа! Урон: ${result.damage_dealt}`
-          : `Поражение... Урон: ${result.damage_dealt}`,
-        result.result === 'won' ? 'success' : 'error'
-      )
     },
     onError: (error) =>
       addToast(error.response?.data?.detail ?? 'Не удалось начать бой', 'error'),
+  })
+}
+
+const FIGHT_END_MESSAGES = {
+  won: (fight) => [`Победа! Урон: ${fight.damage_dealt}`, 'success'],
+  lost: (fight) => [`Поражение... Урон: ${fight.damage_dealt}`, 'error'],
+  timeout: (fight) => [`Раунды кончились. Урон: ${fight.damage_dealt}`, 'info'],
+}
+
+export function useTakeTurn() {
+  const queryClient = useQueryClient()
+  const addToast = useToastStore((state) => state.addToast)
+  return useMutation({
+    mutationFn: takeTurn,
+    onSuccess: (fight) => {
+      queryClient.setQueryData(['activeFight'], fight)
+      if (fight.status !== 'active') {
+        queryClient.invalidateQueries({ queryKey: ['me'] })
+        queryClient.invalidateQueries({ queryKey: ['stats'] })
+        queryClient.invalidateQueries({ queryKey: ['shop'] })
+        useLoadoutStore.getState().clear()
+        const [message, type] = FIGHT_END_MESSAGES[fight.status](fight)
+        addToast(message, type)
+      }
+    },
+    onError: (error) =>
+      addToast(error.response?.data?.detail ?? 'Не удалось сделать ход', 'error'),
   })
 }

@@ -10,7 +10,7 @@ import { useShopItems, useApplyShopItem } from '../hooks/useShop'
 import { useAuthStore } from '../store/authStore'
 import { useLoadoutStore } from '../store/loadoutStore'
 import { USABLE_ITEM_KEYS } from '../constants/itemStyle'
-import StatsOverview from '../components/StatsOverview'
+import StatsRingRow from '../components/StatsRingRow'
 import Button from '../components/Button'
 import InventoryItemCard from '../components/InventoryItemCard'
 import Select from '../components/Select'
@@ -107,6 +107,24 @@ export default function ProfilePage() {
               С нами с {new Date(user?.created_at).toLocaleDateString('ru-RU')}
             </p>
 
+            {/* Десктоп: значения строкой под датой, как и раньше. На мобиле
+                узкая колонка рядом с аватаркой не вмещает все три — там
+                отдельный полноширинный блок ниже (см. sm:hidden). */}
+            <div className="mt-2 hidden items-center gap-5 sm:flex">
+              <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-4 py-2 text-base text-cyber-gold underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-gold">
+                <Coins width={18} height={18} />
+                {user?.currency_balance}
+              </span>
+              <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-4 py-2 text-base text-cyber-secondary underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-secondary">
+                <Sword width={18} height={18} />
+                {user?.boss_currency_balance}
+              </span>
+              <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-4 py-2 text-base text-cyber-danger underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-danger">
+                <Heart width={18} height={18} />
+                {user?.current_hp}
+              </span>
+            </div>
+
             {uploading && <p className="mt-3 text-sm text-gray-400">Загружаем аватарку...</p>}
             {uploadError && (
               <p className="mt-3 text-sm text-cyber-danger">
@@ -116,25 +134,25 @@ export default function ProfilePage() {
           </div>
         </div>
 
-        <div className="mt-4 flex flex-col gap-3 text-sm sm:flex-row sm:flex-wrap sm:items-center sm:gap-5 sm:text-base">
-          <div className="flex items-center gap-2 overflow-x-auto sm:gap-5">
-            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-gold bg-cyber-bg px-3 py-1.5 text-cyber-gold pixel-shadow-gold sm:px-4 sm:py-2">
-              <Coins width={16} height={16} className="sm:hidden" />
-              <Coins width={18} height={18} className="hidden sm:block" />
-              {user?.currency_balance}
-            </span>
-            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-secondary bg-cyber-bg px-3 py-1.5 text-cyber-secondary pixel-shadow-secondary sm:px-4 sm:py-2">
-              <Sword width={16} height={16} className="sm:hidden" />
-              <Sword width={18} height={18} className="hidden sm:block" />
-              {user?.boss_currency_balance}
-            </span>
-            <span className="flex shrink-0 items-center gap-2 rounded-none border-2 border-cyber-danger bg-cyber-bg px-3 py-1.5 text-cyber-danger pixel-shadow-danger sm:px-4 sm:py-2">
-              <Heart width={16} height={16} className="sm:hidden" />
-              <Heart width={18} height={18} className="hidden sm:block" />
-              {user?.current_hp}
-            </span>
-          </div>
-          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full sm:ml-auto sm:w-auto">
+        {/* Мобиле-only: своя строка на всю ширину карточки под аватаркой —
+            там достаточно места для всех трёх значений. */}
+        <div className="mt-4 flex flex-wrap items-center gap-2 sm:hidden">
+          <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-3 py-1.5 text-sm text-cyber-gold underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-gold">
+            <Coins width={16} height={16} />
+            {user?.currency_balance}
+          </span>
+          <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-3 py-1.5 text-sm text-cyber-secondary underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-secondary">
+            <Sword width={16} height={16} />
+            {user?.boss_currency_balance}
+          </span>
+          <span className="flex shrink-0 cursor-default items-center gap-2 rounded-none px-3 py-1.5 text-sm text-cyber-danger underline decoration-transparent decoration-2 underline-offset-4 transition-colors hover:decoration-cyber-danger">
+            <Heart width={16} height={16} />
+            {user?.current_hp}
+          </span>
+        </div>
+
+        <div className="mt-4 flex justify-end">
+          <Button variant="ghost" size="sm" onClick={handleLogout} className="w-full sm:w-auto">
             <Logout width={16} height={16} className="mr-2 inline align-text-bottom" />
             Выйти
           </Button>
@@ -177,7 +195,7 @@ export default function ProfilePage() {
 
       <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
         <h2 className="mb-3 font-display text-sm text-gray-100">ХАРАКТЕРИСТИКИ</h2>
-        <StatsOverview />
+        <StatsRingRow />
       </div>
 
       <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
