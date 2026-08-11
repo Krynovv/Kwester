@@ -9,7 +9,6 @@ import { useShopItems } from '../hooks/useShop'
 import { ITEM_ICONS, accentFor } from '../constants/itemStyle'
 import { ACTIONS } from '../constants/battleActions'
 import Button from '../components/Button'
-import BackLink from '../components/BackLink'
 
 const FIGHT_END_LABELS = {
   won: { text: 'ПОБЕДА', className: 'text-cyber-accent' },
@@ -42,9 +41,9 @@ function useFloatingDamage(value) {
 function FighterCard({ mirrored, avatar, avatarBorderClass, name, current, max, barClass, floatingDelta }) {
   const progress = max > 0 ? Math.min(100, (current / max) * 100) : 0
   return (
-    <div className={`flex items-center gap-3 ${mirrored ? 'flex-row-reverse text-right' : ''}`}>
+    <div className={`flex min-w-0 items-center gap-2 sm:gap-3 ${mirrored ? 'flex-row-reverse text-right' : ''}`}>
       <div
-        className={`relative flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden border-2 bg-cyber-bg ${avatarBorderClass}`}
+        className={`relative flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden border-2 bg-cyber-bg sm:h-16 sm:w-16 ${avatarBorderClass}`}
       >
         {avatar}
         {floatingDelta != null && (
@@ -101,7 +100,7 @@ function ChatBubble({ entry }) {
 function ConsumableSlot({ item }) {
   if (!item) {
     return (
-      <div className="flex h-12 w-12 shrink-0 items-center justify-center border-2 border-dashed border-cyber-border text-gray-700">
+      <div className="flex h-10 w-10 shrink-0 items-center justify-center border-2 border-dashed border-cyber-border text-gray-700 sm:h-12 sm:w-12">
         <span className="text-lg leading-none">·</span>
       </div>
     )
@@ -111,10 +110,11 @@ function ConsumableSlot({ item }) {
   return (
     <div
       title={item.name}
-      className="flex h-12 w-12 shrink-0 items-center justify-center border-2 bg-cyber-bg"
+      className="flex h-10 w-10 shrink-0 items-center justify-center border-2 bg-cyber-bg sm:h-12 sm:w-12"
       style={{ borderColor: accent, color: accent }}
     >
-      <Icon width={20} height={20} />
+      <Icon width={16} height={16} className="sm:hidden" />
+      <Icon width={20} height={20} className="hidden sm:block" />
     </div>
   )
 }
@@ -194,48 +194,57 @@ export default function BossChatPage() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-6">
-      <BackLink to="/boss" />
-
-      <div className="grid grid-cols-2 items-start gap-4">
-        <FighterCard
-          avatar={<Skull width={30} height={30} className="text-cyber-primary" />}
-          avatarBorderClass="border-cyber-primary"
-          name={boss.boss_name.toUpperCase()}
-          current={fight.boss_hp}
-          max={fight.boss_max_hp}
-          barClass="bg-cyber-primary"
-          floatingDelta={bossDamage}
-        />
-        <FighterCard
-          mirrored
-          avatar={
-            user?.image_file ? (
-              <img
-                src={`${API_BASE_URL}/static/images/${user.image_file}`}
-                alt=""
-                className="h-full w-full object-cover"
-              />
-            ) : (
-              <span className="font-display text-sm text-cyber-secondary">
-                {user?.username?.[0]?.toUpperCase() ?? '?'}
-              </span>
-            )
-          }
-          avatarBorderClass="border-cyber-secondary"
-          name={user?.username ?? 'Вы'}
-          current={fight.player_hp}
-          max={fight.player_max_hp}
-          barClass="bg-cyber-danger"
-          floatingDelta={playerDamage}
-        />
+      {/* Шапка (аватарки + номер раунда) — не часть ленты, скроллом не уезжает. */}
+      <div className="space-y-2">
+        <div className="grid grid-cols-2 items-start gap-2 sm:gap-4">
+          <FighterCard
+            avatar={<Skull width={30} height={30} className="text-cyber-primary" />}
+            avatarBorderClass="border-cyber-primary"
+            name={boss.boss_name.toUpperCase()}
+            current={fight.boss_hp}
+            max={fight.boss_max_hp}
+            barClass="bg-cyber-primary"
+            floatingDelta={bossDamage}
+          />
+          <FighterCard
+            mirrored
+            avatar={
+              user?.image_file ? (
+                <img
+                  src={`${API_BASE_URL}/static/images/${user.image_file}`}
+                  alt=""
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <span className="font-display text-sm text-cyber-secondary">
+                  {user?.username?.[0]?.toUpperCase() ?? '?'}
+                </span>
+              )
+            }
+            avatarBorderClass="border-cyber-secondary"
+            name={user?.username ?? 'Вы'}
+            current={fight.player_hp}
+            max={fight.player_max_hp}
+            barClass="bg-cyber-danger"
+            floatingDelta={playerDamage}
+          />
+        </div>
+        <p className="text-center text-sm text-gray-500">Раунд {fight.current_round}</p>
       </div>
 
-      <p className="text-center text-sm text-gray-500">Раунд {fight.current_round}</p>
+      {/* Отделяет шапку от ленты чата. */}
+      <div className="-mt-4 border-t-2 border-cyber-border" />
 
-      {/* calc, не vh: ниже ленты — закреплённая внизу вьюпорта панель
-          действий (~120px), а над ней — шапка бойцов переменной высоты;
-          без вычета лента могла бы визуально уехать под панель. */}
-      <div className="h-[calc(100vh-380px)] min-h-32 space-y-3 overflow-y-auto border-2 border-cyber-border bg-cyber-card p-3">
+      {/* Лента без рамки/карточки, на всю ширину экрана — классический
+          приём "выхода" из mx-auto max-w-2xl: растягиваем на 100vw и
+          возвращаем читаемую ширину контента уже внутри. */}
+      <div className="relative left-1/2 -mt-4 w-screen -translate-x-1/2">
+        {/* calc, не vh: ниже ленты — закреплённая внизу вьюпорта панель
+            действий, а над ней — шапка бойцов переменной высоты; без
+            вычета лента могла бы визуально уехать под панель.
+            -mt-4 выше подтягивает ленту к разделителю — компенсируем
+            высотой (-280 вместо -300), чтобы нижняя граница не съехала. */}
+        <div className="mx-auto h-[calc(100vh-305px)] min-h-32 max-w-2xl space-y-3 overflow-y-auto px-3 pt-1 sm:px-6">
         {fight.rounds.length === 0 && !pendingAction && (
           <p className="py-6 text-center text-sm text-gray-500">Выберите действие — бой начнётся с вашего хода.</p>
         )}
@@ -268,7 +277,11 @@ export default function BossChatPage() {
         )}
         {isTurning && <TypingBubble />}
         <div ref={feedEndRef} />
+        </div>
       </div>
+
+      {/* Симметричный разделитель — обозначает конец ленты. */}
+      <div className="-mt-4 border-t-2 border-cyber-border" />
 
       {finished && (
         <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 text-center">
@@ -282,7 +295,7 @@ export default function BossChatPage() {
 
       {/* Резерв места под закреплённую панель, чтобы конец ленты/баннер
           исхода не прятались под ней. */}
-      {!finished && <div className="h-28" aria-hidden="true" />}
+      {!finished && <div className="h-24" aria-hidden="true" />}
 
       {!finished && (
         // Панель действий закреплена внизу вьюпорта — иконка "выпрыгивает"
@@ -290,9 +303,9 @@ export default function BossChatPage() {
         // реагирует целиком — см. https://uiverse.io/Mayurwaghgpr/foolish-liger-76
         // (адаптировано под пиксельный стиль игры: без скруглений, с hard
         // pixel-shadow).
-        <div className="fixed inset-x-0 bottom-4 z-20 flex items-center justify-center gap-3 px-4">
+        <div className="fixed inset-x-0 bottom-2 z-20 flex max-w-full items-center justify-center gap-2 overflow-x-auto px-2 sm:bottom-4 sm:gap-3 sm:px-4">
           <ConsumableSlot item={armedItems[0]} />
-          <div className="flex w-fit items-end gap-5 border-2 border-cyber-border bg-cyber-card px-5 py-3 pixel-shadow-ghost transition-transform duration-300 hover:scale-[1.03]">
+          <div className="flex w-fit shrink-0 items-end gap-2 border-2 border-cyber-border bg-cyber-card px-3 py-2 pixel-shadow-ghost transition-transform duration-300 hover:scale-[1.03] sm:gap-5 sm:px-5 sm:py-3">
             {ACTIONS.map(({ value, label, hint, icon: Icon, accent }) => (
               <button
                 key={value}
@@ -300,15 +313,16 @@ export default function BossChatPage() {
                 onClick={() => handleAction(value)}
                 disabled={isTurning}
                 title={hint}
-                className="flex flex-col items-center gap-1.5 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex shrink-0 flex-col items-center gap-1 disabled:cursor-not-allowed disabled:opacity-40 sm:gap-1.5"
               >
                 <span
-                  className="flex h-12 w-12 items-center justify-center border-2 bg-cyber-bg transition-all duration-300 hover:-translate-y-2 hover:scale-110 active:translate-y-0 active:scale-90"
+                  className="flex h-10 w-10 items-center justify-center border-2 bg-cyber-bg transition-all duration-300 hover:-translate-y-2 hover:scale-110 active:translate-y-0 active:scale-90 sm:h-12 sm:w-12"
                   style={{ borderColor: accent, color: accent }}
                 >
-                  <Icon width={22} height={22} />
+                  <Icon width={18} height={18} className="sm:hidden" />
+                  <Icon width={22} height={22} className="hidden sm:block" />
                 </span>
-                <span className="text-xs text-gray-400">{label}</span>
+                <span className="text-[9px] whitespace-nowrap text-gray-400 sm:text-xs">{label}</span>
               </button>
             ))}
           </div>
