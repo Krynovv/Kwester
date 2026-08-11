@@ -99,7 +99,7 @@ async def _prepare_consumables(db: AsyncSession, user_id: int, keys: list[str]) 
     """Валидирует и списывает заряды выбранных на этот бой расходников.
 
     Правило "сумки": без неё — не больше одного расходника; с ней — до двух,
-    и только из разных категорий. Иначе, например, защита + знак шанса
+    и только из разных категорий. Иначе, например, защита + оберег удачи
     складываются в фактическую неуязвимость (см. artifacts/shop-design.md).
     """
     if not keys:
@@ -359,7 +359,7 @@ async def _finish(
     boss = boss_result.scalar_one()
 
     if result is FightStatus.won:
-        await _award(db, user, boss, multiplier=award_multiplier)
+        await _award(db, fight, user, boss, multiplier=award_multiplier)
     elif result is FightStatus.timeout:
         # Босс выстоял — награды нет, но и уровень не растёт: это не поражение.
         pass
@@ -376,7 +376,7 @@ async def _finish(
     boss.pending_failures = 0
 
 
-async def _award(db: AsyncSession, user: User, boss: Boss, multiplier: float) -> None:
+async def _award(db: AsyncSession, fight: BossFight, user: User, boss: Boss, multiplier: float) -> None:
     stats_result = await db.execute(
         select(Stat).where(Stat.user_id == user.id, Stat.is_default == True)
     )
@@ -399,6 +399,12 @@ async def _award(db: AsyncSession, user: User, boss: Boss, multiplier: float) ->
         reason=TransactionReason.boss_defeated,
     ))
 
-    xp_share = round(WIN_BASE_XP * multiplier) // max(len(default_stats), 1)
+    total_xp = round(WIN_BASE_XP * multiplier)
+    xp_share = total_xp // max(len(default_stats), 1)
     for stat in default_stats:
         apply_stat_xp(stat, xp_share)
+
+    # Для баннера "Победа" на фронте — фактически выданное, не эталонное
+    # WIN_BASE_XP (multiplier из timeout-очков его меняет).
+    fight.currency_awarded = currency
+    fight.xp_awarded = xp_share * len(default_stats)

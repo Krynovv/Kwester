@@ -10,6 +10,7 @@ import ShopPage from './pages/ShopPage'
 import ProfilePage from './pages/ProfilePage'
 import StatDetailPage from './pages/StatDetailPage'
 import BossFightPage from './pages/BossFightPage'
+import BossChatPage from './pages/BossChatPage'
 import ToastContainer from './components/ToastContainer'
 
 function App() {
@@ -28,6 +29,7 @@ function App() {
             <Route path="/profile" element={<ProfilePage />} />
             <Route path="/stats/:statId" element={<StatDetailPage />} />
             <Route path="/boss" element={<BossFightPage />} />
+            <Route path="/boss/chat" element={<BossChatPage />} />
           </Route>
         </Route>
       </Routes>

@@ -83,21 +83,25 @@ export default function QuestForm() {
     >
       <h2 className="font-display text-sm text-gray-300">НОВЫЙ КВЕСТ</h2>
 
-      <input
-        type="text"
-        placeholder="Название"
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
-        required
-      />
-      <textarea
-        placeholder="Описание (необязательно)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
-        rows={2}
-      />
+      <div className="cyber-input-wrapper">
+        <input
+          type="text"
+          placeholder="Название"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          required
+        />
+      </div>
+      <div className="cyber-input-wrapper">
+        <textarea
+          placeholder="Описание (необязательно)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          rows={2}
+        />
+      </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <Select value={questType} onChange={handleQuestTypeChange} options={questTypes} className="w-44" />

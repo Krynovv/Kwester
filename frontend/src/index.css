@@ -59,6 +59,23 @@
   );
 }
 
+/* Тот же приём "насечек", что у bar-segments, но по кругу — режет кольцо
+   прогресса на сегменты через repeating-conic-gradient. Цвет "выреза" —
+   cyber-card, а не cyber-bg: кольца статов сидят на карточке, а не на фоне
+   страницы, так что bar-segments тут дал бы видимый шов другого оттенка. */
+@utility ring-segments {
+  position: absolute;
+  inset: 0;
+  border-radius: 9999px;
+  pointer-events: none;
+  background: repeating-conic-gradient(
+    var(--color-cyber-card) 0deg,
+    var(--color-cyber-card) 3deg,
+    transparent 3deg,
+    transparent 15deg
+  );
+}
+
 :root {
   color-scheme: dark;
   font-size: 20px;
@@ -83,8 +100,12 @@ body {
   font-family: var(--font-mono);
 }
 
-img,
-svg {
+/* Только растровые картинки (аватар, арт бойцов) — это готовый пиксель-арт,
+   и без этого браузер смазывает его сглаживанием при масштабировании.
+   SVG сюда не входит: иконки pixelarticons — уже векторные "пиксельные"
+   контуры, а не битмап; принудительный pixelated на них ломает рендер на
+   части мобильных браузеров (кривые/рваные иконки на телефоне). */
+img {
   image-rendering: pixelated;
 }
 
@@ -213,6 +234,126 @@ svg {
 
 .flip-card-desc::-webkit-scrollbar-thumb {
   background: var(--flip-accent, var(--color-cyber-primary));
+}
+
+/* Боевой чат: всплывающая цифра урона над артом и "печатает" у босса. */
+@keyframes float-damage {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-28px); opacity: 0; }
+}
+
+.animate-float-damage {
+  animation: float-damage 1.1s steps(8, end) forwards;
+}
+
+@keyframes typing-bounce {
+  0%, 60%, 100% { transform: translateY(0); opacity: 0.5; }
+  30% { transform: translateY(-3px); opacity: 1; }
+}
+
+.typing-dot {
+  animation: typing-bounce 1.1s steps(4, end) infinite;
+}
+
+/* Инпуты форм квестов/наград: неоновая линия снизу растёт от центра при
+   фокусе (приём с uiverse.io/WhiteNervosa/bad-mole-33: :before — статичная
+   тонкая линия, :after — акцентная, scaleX(0)->1 поверх неё), фон чуть
+   светлеет, плейсхолдер гаснет — свой индикатор фокуса вместо системного
+   outline (он выключен только тут, не глобально). */
+.cyber-input-wrapper {
+  position: relative;
+}
+
+.cyber-input-wrapper::before,
+.cyber-input-wrapper::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 2px;
+  pointer-events: none;
+}
+
+.cyber-input-wrapper::before {
+  background: var(--color-cyber-border);
+  transition: background-color 400ms ease;
+}
+
+.cyber-input-wrapper::after {
+  background: var(--color-cyber-secondary);
+  transform: scaleX(0);
+  transition: transform 500ms cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.cyber-input-wrapper:focus-within::before {
+  background: var(--color-cyber-secondary);
+}
+
+.cyber-input-wrapper:focus-within::after {
+  transform: scaleX(1);
+}
+
+.cyber-input {
+  transition: background-color 400ms ease;
+}
+
+.cyber-input:focus {
+  outline: none;
+}
+
+.cyber-input-wrapper:focus-within .cyber-input {
+  background: var(--color-cyber-border);
+}
+
+.cyber-input::placeholder {
+  transition: opacity 400ms ease;
+}
+
+.cyber-input-wrapper:focus-within .cyber-input::placeholder {
+  opacity: 0;
+}
+
+/* Чекбокс «многократной покупки» в наградах — квадратная рамка с заливкой
+   при отметке (uiverse.io/arthur_6104/sharp-puma-27, приведено к теме:
+   чёрная рамка/заливка оригинала → cyber-border/cyber-secondary). Заливка
+   при :checked побеждает hover сама по себе — специфичность выше на один
+   элементный селектор (input:checked), порядок правил ниже не важен. */
+.cyber-checkbox {
+  display: inline-flex;
+  height: 1.25rem;
+  width: 1.25rem;
+  padding: 3px;
+  border: 2px solid var(--color-cyber-border);
+  cursor: pointer;
+  transition: border-color 150ms ease;
+}
+
+.cyber-checkbox input {
+  position: absolute;
+  height: 0;
+  width: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.cyber-checkbox-fill {
+  height: 100%;
+  width: 100%;
+  background: transparent;
+  transition: background-color 150ms ease;
+}
+
+.cyber-checkbox:hover {
+  border-color: var(--color-cyber-secondary);
+}
+
+.cyber-checkbox:hover .cyber-checkbox-fill {
+  background: var(--color-cyber-border);
+}
+
+.cyber-checkbox input:checked ~ .cyber-checkbox-fill {
+  background: var(--color-cyber-secondary);
 }
 
 @media (prefers-reduced-motion: reduce) {

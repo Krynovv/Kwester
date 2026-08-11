@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { Sword, Sparkle, ChevronRight } from 'pixelarticons/react'
 import { usePurchaseShopItem } from '../hooks/useShop'
-import { ITEM_ICONS, accentFor } from '../constants/itemStyle'
+import { ITEM_ICONS, accentFor, TYPE_LABEL_OVERRIDES } from '../constants/itemStyle'
+import { CATEGORY_LABEL } from '../constants/shopCategory'
 import Button from './Button'
 
 export default function ShopItemCard({ item, bossCurrencyBalance }) {
@@ -22,6 +23,16 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
 
   const Icon = ITEM_ICONS[item.key] ?? Sparkle
   const accent = accentFor(item)
+  // Раньше цвет рамки был единственным указателем категории — расшифровка
+  // жила в отдельной легенде над сеткой. Подписываем прямо на карточке,
+  // легенда теперь не нужна (см. ShopSection).
+  const typeLabel = item.permanent
+    ? 'постоянный'
+    : item.category
+      ? `тип: ${CATEGORY_LABEL[item.category]}`
+      : TYPE_LABEL_OVERRIDES[item.key]
+        ? `тип: ${TYPE_LABEL_OVERRIDES[item.key]}`
+        : 'расходник'
   const toggle = () => setFlipped((f) => !f)
 
   return (
@@ -50,7 +61,7 @@ export default function ShopItemCard({ item, bossCurrencyBalance }) {
               className="shrink-0 border px-1 py-0.5 text-[10px] whitespace-nowrap uppercase"
               style={{ color: accent, borderColor: accent }}
             >
-              {item.permanent ? 'постоянный' : 'расходник'}
+              {typeLabel}
             </span>
             <span className="flex shrink-0 items-center gap-1 text-xs text-cyber-secondary">
               <Sword width={12} height={12} />

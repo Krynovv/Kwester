@@ -4,6 +4,7 @@ import { useCompleteQuest, useDeleteQuest, useUpdateQuest } from '../hooks/useQu
 import { useStats } from '../hooks/useStats'
 import { toDateInputValue, toTimeInputValue, fromDateAndTimeInputValue } from '../utils/datetime'
 import Button from './Button'
+import HoldToDeleteButton from './HoldToDeleteButton'
 import Select from './Select'
 import DatePicker from './DatePicker'
 import TimePicker from './TimePicker'
@@ -190,14 +191,13 @@ export default function QuestCard({ quest, statName, statName2 }) {
           <Button variant="ghost" onClick={() => setIsEditing(true)} className="w-full sm:w-auto">
             Изменить
           </Button>
-          <Button
-            variant="ghost"
-            onClick={() => remove(quest.id)}
+          <HoldToDeleteButton
+            onConfirm={() => remove(quest.id)}
             disabled={deleting}
             className="w-full sm:w-auto"
           >
             Удалить
-          </Button>
+          </HoldToDeleteButton>
         </div>
       </div>
     </div>

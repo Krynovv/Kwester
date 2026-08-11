@@ -26,14 +26,16 @@ export default function LoginPage() {
       >
         <h1 className="font-display text-base text-cyber-primary text-glow">ВХОД В KWESTER</h1>
 
-        <input
-          type="text"
-          placeholder="Имя пользователя"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-gray-100"
-          required
-        />
+        <div className="cyber-input-wrapper">
+          <input
+            type="text"
+            placeholder="Имя пользователя"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-gray-100"
+            required
+          />
+        </div>
         <PasswordInput
           placeholder="Пароль"
           value={password}

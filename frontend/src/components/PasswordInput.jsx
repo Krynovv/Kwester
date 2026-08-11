@@ -5,10 +5,10 @@ export default function PasswordInput({ className = '', ...props }) {
   const [visible, setVisible] = useState(false)
 
   return (
-    <div className="relative">
+    <div className="cyber-input-wrapper relative">
       <input
         type={visible ? 'text' : 'password'}
-        className={`w-full rounded-none bg-cyber-muted px-3 py-2 pr-10 text-gray-100 ${className}`}
+        className={`cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 pr-10 text-gray-100 ${className}`}
         {...props}
       />
       <button

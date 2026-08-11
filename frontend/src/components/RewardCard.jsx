@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Coins } from 'pixelarticons/react'
 import { usePurchaseReward, useDeleteReward, useUpdateReward } from '../hooks/useRewards'
 import Button from './Button'
+import HoldToDeleteButton from './HoldToDeleteButton'
 
 export default function RewardCard({ reward, currencyBalance }) {
   const [isEditing, setIsEditing] = useState(false)
@@ -79,13 +80,15 @@ export default function RewardCard({ reward, currencyBalance }) {
           />
         </div>
 
-        <label className="flex items-center gap-2 text-sm text-gray-300">
-          <input
-            type="checkbox"
-            checked={repeatable}
-            onChange={(e) => setRepeatable(e.target.checked)}
-            className="h-4 w-4 shrink-0 rounded-none border-2 border-cyber-border bg-cyber-muted accent-cyber-secondary"
-          />
+        <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-300 select-none">
+          <span className="cyber-checkbox">
+            <input
+              type="checkbox"
+              checked={repeatable}
+              onChange={(e) => setRepeatable(e.target.checked)}
+            />
+            <span className="cyber-checkbox-fill" />
+          </span>
           Можно покупать многократно
         </label>
 
@@ -139,15 +142,14 @@ export default function RewardCard({ reward, currencyBalance }) {
             <Button variant="ghost" size="sm" className="flex-1 sm:flex-none" onClick={() => setIsEditing(true)}>
               Изменить
             </Button>
-            <Button
-              variant="ghost"
+            <HoldToDeleteButton
               size="sm"
               className="flex-1 sm:flex-none"
-              onClick={() => remove(reward.id)}
+              onConfirm={() => remove(reward.id)}
               disabled={deleting}
             >
               Удалить
-            </Button>
+            </HoldToDeleteButton>
           </div>
         </div>
       </div>
