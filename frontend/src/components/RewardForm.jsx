@@ -40,49 +40,59 @@ export default function RewardForm() {
     >
       <h2 className="font-display text-sm text-gray-300">НОВАЯ НАГРАДА</h2>
 
-      <input
-        type="text"
-        placeholder="Название"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
-        required
-      />
-      <textarea
-        placeholder="Описание (необязательно)"
-        value={description}
-        onChange={(e) => setDescription(e.target.value)}
-        className="w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
-        rows={2}
-      />
-
-      <div className="flex gap-3">
+      <div className="cyber-input-wrapper">
         <input
-          type="number"
-          min="1"
-          placeholder="Цена"
-          value={cost}
-          onChange={(e) => setCost(e.target.value)}
-          className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          type="text"
+          placeholder="Название"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
           required
         />
-        <input
-          type="number"
-          min="0"
-          placeholder="Уровень"
-          value={unlockLevel}
-          onChange={(e) => setUnlockLevel(e.target.value)}
-          className="w-1/2 rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+      </div>
+      <div className="cyber-input-wrapper">
+        <textarea
+          placeholder="Описание (необязательно)"
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          rows={2}
         />
       </div>
 
-      <label className="flex items-center gap-2 text-sm text-gray-300">
-        <input
-          type="checkbox"
-          checked={repeatable}
-          onChange={(e) => setRepeatable(e.target.checked)}
-          className="h-4 w-4 shrink-0 rounded-none border-2 border-cyber-border bg-cyber-muted accent-cyber-secondary"
-        />
+      <div className="flex gap-3">
+        <div className="cyber-input-wrapper w-1/2">
+          <input
+            type="number"
+            min="1"
+            placeholder="Цена"
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
+            className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+            required
+          />
+        </div>
+        <div className="cyber-input-wrapper w-1/2">
+          <input
+            type="number"
+            min="0"
+            placeholder="Уровень"
+            value={unlockLevel}
+            onChange={(e) => setUnlockLevel(e.target.value)}
+            className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-sm text-gray-100"
+          />
+        </div>
+      </div>
+
+      <label className="flex cursor-pointer items-center gap-2 text-sm text-gray-300 select-none">
+        <span className="cyber-checkbox">
+          <input
+            type="checkbox"
+            checked={repeatable}
+            onChange={(e) => setRepeatable(e.target.checked)}
+          />
+          <span className="cyber-checkbox-fill" />
+        </span>
         Можно покупать многократно
       </label>
 

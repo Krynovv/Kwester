@@ -49,7 +49,7 @@ SHOP_ITEMS = {
     "potion_rage": {
         "name": "Зелье ярости",
         "description": "+5% к урону за каждый закрытый сегодня квест, максимум +50%",
-        "cost": 60,
+        "cost": 25,
         "unlock_level": 0,
         "repeatable": True,
         "permanent": False,
@@ -58,14 +58,14 @@ SHOP_ITEMS = {
     "potion_guard": {
         "name": "Оберег защиты",
         "description": "-15% урона босса на этот бой",
-        "cost": 60,
+        "cost": 30,
         "unlock_level": 0,
         "repeatable": True,
         "permanent": False,
         "category": CONSUMABLE_CATEGORY_DEFENSIVE,
     },
     "charm_mercy": {
-        "name": "Оберег пощады",
+        "name": "Знак пощады",
         "description": "После поражения босс не получает уровень",
         "cost": 120,
         "unlock_level": 0,
@@ -74,9 +74,9 @@ SHOP_ITEMS = {
         "category": CONSUMABLE_CATEGORY_OUTCOME,
     },
     "token_second_chance": {
-        "name": "Знак шанса",
+        "name": "Оберег удачи",
         "description": "После смерти — воскрешение на 25% максимума HP, один раз за бой",
-        "cost": 180,
+        "cost": 30,
         "unlock_level": 0,
         "repeatable": True,
         "permanent": False,
@@ -85,7 +85,7 @@ SHOP_ITEMS = {
     "token_patience": {
         "name": "Знак терпения",
         "description": "+2 раунда к продолжительности боя",
-        "cost": 120,
+        "cost": 15,
         "unlock_level": 0,
         "repeatable": True,
         "permanent": False,

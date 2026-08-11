@@ -276,7 +276,7 @@ async def test_bag_allows_two_different_categories(db_session, fighter, fake_red
 
 
 async def test_bag_rejects_same_category_pair(db_session, fighter, fake_redis, in_window):
-    """Без правила "разных категорий" защита + знак шанса складываются в
+    """Без правила "разных категорий" защита + оберег удачи складываются в
     почти неуязвимость (см. документ) — сумка не должна такое разрешать."""
     for key in ("potion_guard", "token_second_chance", "bag"):  # оба defensive
         await grant_charge(db_session, fighter.id, key)
