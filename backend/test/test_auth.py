@@ -46,6 +46,18 @@ async def test_register_duplicate_email_fails(client):
     assert response.status_code == 400
 
 
+async def test_register_duplicate_username_fails(client):
+    payload = {"username": "sameuser", "email": "first@test.com", "password": "password123"}
+    await client.post("/auth/register", json=payload)
+
+    payload2 = {"username": "sameuser", "email": "second@test.com", "password": "password123"}
+    response = await client.post("/auth/register", json=payload2)
+
+    # Занятый ник — это 400 с внятным текстом, а не 500 от IntegrityError.
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Username already taken"
+
+
 async def test_register_short_password_rejected(client):
     response = await client.post("/auth/register", json={
         "username": "shortpass",

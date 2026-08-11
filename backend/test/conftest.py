@@ -1,3 +1,5 @@
+from datetime import datetime
+
 import pytest
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -29,10 +31,53 @@ class FakeRedis:
         for key in keys:
             self._data.pop(key, None)
 
+    async def incr(self, key):
+        value = int(self._data.get(key, 0)) + 1
+        self._data[key] = str(value)
+        return value
+
+    async def expire(self, key, seconds):
+        return key in self._data
+
+    async def ttl(self, key):
+        # Реальный TTL не моделируется; -1 = «ключ есть, срок не истекает».
+        return -1 if key in self._data else -2
+
 
 @pytest.fixture
 def fake_redis():
     return FakeRedis()
+
+
+@pytest.fixture
+def freeze_time(monkeypatch):
+    """Останавливает часы во всех модулях, которые их читают.
+
+    Момент задаётся в UTC, а now(tz) отдаёт его пересчитанным в запрошенный
+    пояс. Возвращать UTC-время с чужим ярлыком пояса нельзя: логика локальных
+    суток именно на этом пересчёте и держится.
+    """
+
+    def _freeze(moment: datetime):
+        class FrozenDatetime(datetime):
+            @classmethod
+            def now(cls, tz=None):
+                if tz is None:
+                    return moment.replace(tzinfo=None)
+                return moment.astimezone(tz)
+
+        import app.core.timezones as timezones_module
+        import app.service.boss as boss_module
+        import app.service.quest as quest_module
+
+        for module in (timezones_module, quest_module, boss_module):
+            # raising=False: boss.py больше не читает datetime.now() напрямую
+            # (всё через core.timezones), так что там нет своего атрибута
+            # datetime на уровне модуля — патчить нечего, но и не ошибка.
+            monkeypatch.setattr(module, "datetime", FrozenDatetime, raising=False)
+        return FrozenDatetime
+
+    return _freeze
 
 
 engine = create_async_engine(settings.test_database_url)

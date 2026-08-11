@@ -27,13 +27,19 @@ class Stat(Base):
     name: Mapped[str] = mapped_column(String(50))
     level: Mapped[int] = mapped_column(Integer, default=1)
     current_xp: Mapped[int] = mapped_column (Integer, default=0)
-    xp_to_next_level: Mapped[int] = mapped_column (Integer, default=100)
+    # Должен совпадать с core.constant.STAT_LEVEL_XP_BASE.
+    xp_to_next_level: Mapped[int] = mapped_column (Integer, default=75)
 
     combat_role: Mapped[CombatRole | None] = mapped_column(Enum(CombatRole), nullable=True, default=None)
     is_default: Mapped[bool] = mapped_column(default=False)
 
     users: Mapped["User"] = relationship( back_populates="stats")
-    quests: Mapped[list["Quest"]] = relationship(back_populates="stats")
+    quests: Mapped[list["Quest"]] = relationship(
+        foreign_keys="[Quest.stat_id]", back_populates="stats"
+    )
+    quests_secondary: Mapped[list["Quest"]] = relationship(
+        foreign_keys="[Quest.stat_id_2]", back_populates="stats_2"
+    )
     tags: Mapped[list["Tag"]] = relationship(back_populates="stats")
 
     def __repr__(self):

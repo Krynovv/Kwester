@@ -1,7 +1,7 @@
 from fastapi import HTTPException, status
+from redis.asyncio import Redis
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from redis.asyncio import Redis
 
 from ..core.constant_shop import SHOP_ITEMS
 from ..models.user import User

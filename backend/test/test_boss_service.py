@@ -1,7 +1,8 @@
 import pytest
-from datetime import date, datetime, timezone, timedelta
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import HTTPException
-import datetime as datetime_module
+from sqlalchemy import select
 from app.models.user import User
 from app.models.stat import Stat, CombatRole
 from app.models.boss import Boss
@@ -207,7 +208,7 @@ async def test_load_combat_profile_picks_up_owned_specializations(db_session, us
 
     today = datetime.now(timezone.utc).date()
     without = build_player_combat({role: 1 for role in CombatRole}, {})
-    profile = await load_combat_profile(db_session, user_with_boss.id, today)
+    profile = await load_combat_profile(db_session, user_with_boss.id, today, ZoneInfo("UTC"))
 
     assert profile.attack == pytest.approx(without.attack * SPEC_STRENGTH_ATTACK_MULTIPLIER)
 
@@ -236,3 +237,62 @@ async def test_spec_health_boosts_daily_regen(db_session, user_with_boss, fake_r
     await db_session.refresh(user_with_boss)
     await db_session.refresh(plain_user)
     assert user_with_boss.current_hp > plain_user.current_hp
+
+
+# ────────────────── Мультистат-квесты в боевом профиле ──────────────────
+
+async def test_load_combat_profile_counts_quest_for_both_attached_stats(db_session, user_with_boss):
+    """Квест с двумя статами (stat_id + stat_id_2) должен засчитаться в effort
+    обоих — иначе второй слот квеста никак не влиял бы на бой."""
+    stats = (await db_session.execute(
+        select(Stat).where(Stat.user_id == user_with_boss.id).order_by(Stat.id)
+    )).scalars().all()
+    strength = next(s for s in stats if s.combat_role == CombatRole.strength)
+    health = next(s for s in stats if s.combat_role == CombatRole.health)
+
+    db_session.add(Quest(
+        user_id=user_with_boss.id,
+        stat_id=strength.id,
+        stat_id_2=health.id,
+        name="зал",
+        quest_type=QuestType.once,
+        status=QuestStatus.done,
+        last_completed_at=datetime.now(timezone.utc),
+    ))
+    await db_session.flush()
+
+    today = datetime.now(timezone.utc).date()
+    profile = await load_combat_profile(db_session, user_with_boss.id, today, ZoneInfo("UTC"))
+
+    expected = build_player_combat(
+        {role: 1 for role in CombatRole},
+        {CombatRole.strength: 1, CombatRole.health: 1},
+    )
+    assert profile.attack == pytest.approx(expected.attack)
+    assert profile.max_hp == pytest.approx(expected.max_hp)
+
+
+async def test_load_combat_profile_counts_two_quests_on_same_stat_separately(db_session, user_with_boss):
+    """union_all, не union: две РАЗНЫЕ привычки на одну и ту же силу должны
+    засчитаться как 2 квеста effort'а, а не схлопнуться в одну строку."""
+    stats = (await db_session.execute(
+        select(Stat).where(Stat.user_id == user_with_boss.id).order_by(Stat.id)
+    )).scalars().all()
+    strength = next(s for s in stats if s.combat_role == CombatRole.strength)
+
+    for name in ("квест 1", "квест 2"):
+        db_session.add(Quest(
+            user_id=user_with_boss.id,
+            stat_id=strength.id,
+            name=name,
+            quest_type=QuestType.once,
+            status=QuestStatus.done,
+            last_completed_at=datetime.now(timezone.utc),
+        ))
+    await db_session.flush()
+
+    today = datetime.now(timezone.utc).date()
+    profile = await load_combat_profile(db_session, user_with_boss.id, today, ZoneInfo("UTC"))
+
+    expected = build_player_combat({role: 1 for role in CombatRole}, {CombatRole.strength: 2})
+    assert profile.attack == pytest.approx(expected.attack)

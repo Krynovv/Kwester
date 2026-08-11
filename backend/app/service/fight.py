@@ -22,7 +22,7 @@ from redis.asyncio import Redis
 from ..core.constant import (
     COUNT_ROUND, FIGHT_TTL_MINUTES, MIN_FIGHT_HP_PERCENT,
     FIGHT_WINDOW_START_HOUR, DEATH_BOSS_LEVEL_GAIN, BOSS_LEVEL_GAP_CAP,
-    TIMEOUT_POINTS_WIN_REWARD, STAT_XP_GROWTH,
+    TIMEOUT_POINTS_WIN_REWARD,
     WIN_BASE_CURRENCY, WIN_CURRENCY_PER_BOSS_LEVEL, WIN_CURRENCY_PER_INTELLECT,
     WIN_BASE_XP,
 )
@@ -31,6 +31,7 @@ from ..core.constant_shop import (
     RAGE_POTION_DILIGENCE_MULTIPLIER, GUARD_POTION_DAMAGE_REDUCTION,
     SECOND_CHANCE_REVIVE_HP_PERCENT, PATIENCE_EXTRA_ROUNDS,
 )
+from ..core.timezones import get_user_zone, local_now
 from ..models.boss import Boss
 from ..models.boss_fight import (
     BossFight, BossFightRound, FightStatus, FightActor, PlayerActionType,
@@ -39,6 +40,7 @@ from ..models.stat import Stat, CombatRole
 from ..models.transaction import TransactionLog, TransactionReason
 from ..models.user import User
 from .boss import invalidate_boss_status, ensure_hp_regen, load_combat_profile
+from .character import apply_stat_xp
 from .combat import (
     PlayerCombat, PlayerAction, calculate_boss_hp, calculate_boss_attack,
     resolve_player_turn, resolve_boss_turn, round_rng,
@@ -149,12 +151,17 @@ async def start_fight(
     await ensure_hp_regen(db, user_id)
 
     now = _now()
-    today = now.date()
+    # Окно боя и граница суток — по местному времени игрока (как и в
+    # get_boss_status/ensure_hp_regen), а не по UTC: иначе "готов к бою"
+    # в статусе и реальный старт боя разъезжались бы у игроков не в UTC+0.
+    zone = await get_user_zone(db, user_id)
+    local_moment = local_now(zone)
+    today = local_moment.date()
 
-    if now.hour < FIGHT_WINDOW_START_HOUR:
+    if local_moment.hour < FIGHT_WINDOW_START_HOUR:
         raise HTTPException(
             status_code=http_status.HTTP_400_BAD_REQUEST,
-            detail=f"Окно боя открывается в {FIGHT_WINDOW_START_HOUR}:00 UTC",
+            detail=f"Окно боя открывается в {FIGHT_WINDOW_START_HOUR}:00 ({zone.key})",
         )
 
     existing = await get_active_fight(db, user_id)
@@ -189,7 +196,7 @@ async def start_fight(
     )
     user = user_result.scalar_one()
 
-    profile = await load_combat_profile(db, user_id, today)
+    profile = await load_combat_profile(db, user_id, today, zone)
 
     # Порог входа: без него смерть загоняет в спираль — 20% HP на следующий
     # день означают смерть во втором раунде, и так по кругу.
@@ -394,8 +401,4 @@ async def _award(db: AsyncSession, user: User, boss: Boss, multiplier: float) ->
 
     xp_share = round(WIN_BASE_XP * multiplier) // max(len(default_stats), 1)
     for stat in default_stats:
-        stat.current_xp += xp_share
-        while stat.current_xp >= stat.xp_to_next_level:
-            stat.current_xp -= stat.xp_to_next_level
-            stat.level += 1
-            stat.xp_to_next_level = int(stat.xp_to_next_level * STAT_XP_GROWTH)
+        apply_stat_xp(stat, xp_share)

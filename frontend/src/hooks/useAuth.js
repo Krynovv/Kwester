@@ -4,13 +4,13 @@ import { useAuthStore } from '../store/authStore'
 import { useToastStore } from '../store/toastStore'
 
 export function useLogin() {
-  const setToken = useAuthStore((state) => state.setToken)
+  const setTokens = useAuthStore((state) => state.setTokens)
   const addToast = useToastStore((state) => state.addToast)
 
   return useMutation({
     mutationFn: ({ username, password }) => loginUser(username, password),
     onSuccess: (data) => {
-      setToken(data.access_token)
+      setTokens(data.access_token, data.refresh_token)
       addToast('Вход выполнен', 'success')
     },
     // Ошибка остаётся только в форме (LoginPage) — тост был бы дублем.

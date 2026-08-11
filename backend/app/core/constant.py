@@ -8,8 +8,6 @@ QUEST_TYPE_REWARDS = {
     QuestType.habit: {"currency": 3, "xp": 5},
 }
 
-STAT_XP_GROWTH = 1.5   # было захардкожено в quest.py:48 и boss.py:192
-
 DEFAULT_STATS = [
     {"name": "Сила", "combat_role": CombatRole.strength},
     {"name": "Ловкость", "combat_role": CombatRole.agility},
@@ -29,12 +27,19 @@ def get_boss_name(level: int) -> str:
 
 # ----- Структура раунда ----- #
 COUNT_ROUND = 7        # лимит раундов
-FIGHT_TTL_MINUTES = 30 # брошенный бой 
+FIGHT_TTL_MINUTES = 30 # брошенный бой
 
 # Порог сознательно выше дневного регена (HP_REGEN_PERCENT). Если бы они
 # совпадали, после KO игрок восстанавливался бы ровно до порога и его снова
 # пускали бы в бой на грани смерти — спираль поражений без выхода.
 MIN_FIGHT_HP_PERCENT = 0.5 # ниже порога в бой не пускается
+
+# Порог XP для след. уровня стата = BASE + (level - 1) * INCREMENT.
+# Линейный, не экспоненциальный рост: держит прокачку в районе +2 квеста
+# ("once", 15 XP) на каждый следующий уровень, начиная с 5 квестов на 1-й.
+# BASE должен совпадать с Stat.xp_to_next_level.default.
+STAT_LEVEL_XP_BASE = 75
+STAT_LEVEL_XP_INCREMENT = 30
 
 # ----- Игрок ----- #
 BASE_MAX_HP = 100
@@ -109,6 +114,10 @@ BOSS_LEVEL_GAP_CAP = 3
 TIMEOUT_POINTS_WIN_REWARD = 0.5   # победа по очкам на таймауте → половина награды
 EXHAUSTED_REWARD_MULTIPLIER = 0.5 # ⚠️ при hp==0 режет награды за КВЕСТЫ вдвое.
 
+OFF_SCHEDULE_HP_PENALTY = 5         # HP за выполнение привычки вне её расписания
+STREAK_LOOKBACK_DAYS = 30           # вглубь скольких дней ищем пропуски расписания
+SECONDARY_STAT_XP_SHARE = 0.5       # доля XP для второго стата квеста
+
 # ----- Награда ----- #
 WIN_BASE_CURRENCY = 20
 WIN_CURRENCY_PER_BOSS_LEVEL = 5
@@ -117,3 +126,14 @@ WIN_BASE_XP = 50
 
 BOSS_STATUS_CACHE_TTL = 30 # Время актуальности статуса для Redis
 FIGHT_WINDOW_START_HOUR = 17
+
+ALLOWED_AVATAR_TYPES = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp"}
+MAX_AVATAR_SIZE = 5 * 1024 * 1024
+# Потолок на тело любого запроса. Аватар — самая тяжёлая загрузка в API,
+# плюс запас на multipart-обвязку. Проверяется до разбора тела, иначе
+# Starlette успевает слить гигабайты во временный файл на диске.
+MAX_REQUEST_BODY_SIZE = MAX_AVATAR_SIZE + 1024 * 1024
+
+# SHOP_ITEMS переехал в constant_shop.py вместе с редизайном магазина —
+# permanent/category полей тут не было, а новые предметы (расходники,
+# специализации) без них не работают.

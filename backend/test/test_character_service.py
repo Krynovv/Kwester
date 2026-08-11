@@ -29,8 +29,8 @@ async def _add_default_stats(db_session, user_id: int, levels: dict[CombatRole, 
 
 async def test_fresh_account_is_character_level_one(db_session, user):
     """5 базовых статов стартуют с level=1 каждый — персонаж должен быть 1-го
-    уровня, а не 5-го (5 * level 1), иначе предметы/награды с
-    unlock_level<=5 открывались бы ещё до первого квеста."""
+    уровня, а не 5-го (5 * level 1), иначе награды с unlock_level<=5
+    открывались бы ещё до первого квеста."""
     await _add_default_stats(db_session, user.id)
 
     assert await get_character_level(db_session, user.id) == 1

@@ -1,10 +1,13 @@
 import json
-from datetime import date, datetime, timezone
+from datetime import date
+from zoneinfo import ZoneInfo
+
 from fastapi import HTTPException, status
-from sqlalchemy import select, func
+from sqlalchemy import select, func, union_all
 from sqlalchemy.ext.asyncio import AsyncSession
 from redis.asyncio import Redis
 
+from ..core.timezones import local_now, local_today, resolve_zone
 from ..models.user import User
 from ..models.boss import Boss
 from ..models.boss_fight import BossFight
@@ -32,17 +35,23 @@ async def get_boss_level(db: AsyncSession, user_id: int) -> int:
 
 async def _get_stat_by_role(db: AsyncSession, user_id: int, role: CombatRole) -> Stat | None:
     result = await db.execute(
-        select(Stat).where(Stat.user_id == user_id, Stat.combat_role == role)        
-    )    
+        select(Stat).where(Stat.user_id == user_id, Stat.combat_role == role)
+    )
     return result.scalar_one_or_none()
 
-async def load_combat_profile(db: AsyncSession, user_id: int, today: date) -> PlayerCombat:
+async def load_combat_profile(db: AsyncSession, user_id: int, today: date, zone: ZoneInfo) -> PlayerCombat:
     """Собирает боевой профиль игрока: уровни статов + закрытые сегодня квесты.
 
     ВНИМАНИЕ: считает КВЕСТЫ, закрытые сегодня, а не число выполнений. У Quest
     есть только last_completed_at (одно перезаписываемое поле), поэтому две
     отметки привычки за день дают 1. Честный подсчёт требует таблицы
     quest_completions — до неё effort по привычкам занижен.
+
+    Квест может быть привязан к двум статам (stat_id/stat_id_2) — в effort
+    обоих затронутых статов он засчитывается отдельно, иначе второй слот
+    никак не влиял бы на бой. today — уже локальная дата игрока: голый
+    func.date() на UTC-поле отрезал бы вечерние по местному времени
+    выполнения в следующий UTC-день.
     """
     stats_result = await db.execute(
         select(Stat).where(Stat.user_id == user_id, Stat.is_default == True)
@@ -53,15 +62,24 @@ async def load_combat_profile(db: AsyncSession, user_id: int, today: date) -> Pl
         if stat.combat_role is not None
     }
 
+    local_completed_at = func.timezone(zone.key, Quest.last_completed_at)
+    completed_today = (
+        Quest.user_id == user_id,
+        func.date(local_completed_at) == today,
+    )
+    # union_all, не union: нужен подсчёт квестов на стат, а не факт "затронут"
+    # — union() схлопнул бы две разные привязанные к силе привычки в одну
+    # строку и точность/уклонение занизились бы вдвое от реального effort.
+    touched_stats = union_all(
+        select(Quest.id, Quest.stat_id.label("stat_id")).where(*completed_today, Quest.stat_id.is_not(None)),
+        select(Quest.id, Quest.stat_id_2.label("stat_id")).where(*completed_today, Quest.stat_id_2.is_not(None)),
+    ).subquery()
+
     quests_result = await db.execute(
-        select(Stat.combat_role, func.count(Quest.id))
-        .join(Quest, Quest.stat_id == Stat.id)
-        .where(
-            Quest.user_id == user_id,
-            Stat.is_default == True,
-            Stat.combat_role.is_not(None),
-            func.date(Quest.last_completed_at) == today,
-        )
+        select(Stat.combat_role, func.count(touched_stats.c.stat_id))
+        .select_from(touched_stats)
+        .join(Stat, Stat.id == touched_stats.c.stat_id)
+        .where(Stat.is_default == True, Stat.combat_role.is_not(None))
         .group_by(Stat.combat_role)
     )
     quests_completed = {role: count for role, count in quests_result.all()}
@@ -75,7 +93,7 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
     result = await db.execute(select(User).where(User.id == user_id). with_for_update())
     user = result.scalar_one()
 
-    today = datetime.now(timezone.utc).date()
+    today = local_today(resolve_zone(user.timezone))
     if user.hp_regen_date == today:
         return
 
@@ -96,7 +114,7 @@ async def ensure_hp_regen(db: AsyncSession, user_id: int) -> None:
         if user.current_hp >= max_hp:
             break
         user.current_hp = min(max_hp, user.current_hp + round(max_hp * regen_percent))
-    
+
     user.hp_regen_date = today
     await db.commit()
 
@@ -108,7 +126,7 @@ async def invalidate_boss_status(redis: Redis, user_id: int) -> None:
 
 async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
     await ensure_hp_regen(db, user_id)
-    
+
     cache_key = _boss_cache_key(user_id)
     cached = await redis.get(cache_key)
     if cached is not None:
@@ -120,8 +138,9 @@ async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
     user_result = await db.execute(select(User).where(User.id == user_id))
     user = user_result.scalar_one()
 
-    today = datetime.now(timezone.utc).date()
-    profile = await load_combat_profile(db, user_id, today)
+    zone = resolve_zone(user.timezone)
+    today = local_today(zone)
+    profile = await load_combat_profile(db, user_id, today, zone)
     max_hp = profile.max_hp
     boss_hp = calculate_boss_hp(profile.avg_level, boss.level)
 
@@ -130,8 +149,8 @@ async def get_boss_status(db: AsyncSession, user_id: int, redis: Redis) -> dict:
     )
     already_fought = fight_result.scalar_one_or_none() is not None
 
-    now_hour = datetime.now(timezone.utc).hour
-    window_open = now_hour >= FIGHT_WINDOW_START_HOUR
+    # Окно боя — вечернее по местному времени игрока, а не по UTC.
+    window_open = local_now(zone).hour >= FIGHT_WINDOW_START_HOUR
 
     # Урон за весь бой, если игрок продержится все раунды.
     projected_damage = round(expected_damage_per_round(profile, boss.level) * COUNT_ROUND)

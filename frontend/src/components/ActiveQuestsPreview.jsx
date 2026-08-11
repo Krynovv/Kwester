@@ -29,7 +29,12 @@ export default function ActiveQuestsPreview() {
       ) : active.length ? (
         <div className="mt-3 space-y-3">
           {active.map((quest) => (
-            <QuestCard key={quest.id} quest={quest} statName={statNameById[quest.stat_id]} />
+            <QuestCard
+              key={quest.id}
+              quest={quest}
+              statName={statNameById[quest.stat_id]}
+              statName2={statNameById[quest.stat_id_2]}
+            />
           ))}
         </div>
       ) : (

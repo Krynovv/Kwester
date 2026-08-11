@@ -7,6 +7,7 @@
 
 import pytest
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException
 
@@ -51,16 +52,20 @@ async def fighter(db_session):
 
 
 @pytest.fixture
-def in_window(monkeypatch):
-    """Двигает часы внутрь окна боя."""
+def in_window(monkeypatch, freeze_time):
+    """Двигает часы внутрь окна боя.
+
+    Патчит и fight_module._now (started_at/expires_at — абсолютные метки
+    времени), и core.timezones.datetime через freeze_time (окно боя и
+    fight_date считаются по местному времени игрока, см. start_fight).
+    """
     import app.service.fight as fight_module
     monkeypatch.setattr(fight_module, "_now", lambda: IN_WINDOW)
+    freeze_time(IN_WINDOW)
 
 
-async def test_start_rejected_before_window(db_session, fighter, fake_redis, monkeypatch):
-    import app.service.fight as fight_module
-    monkeypatch.setattr(fight_module, "_now",
-                        lambda: datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc))
+async def test_start_rejected_before_window(db_session, fighter, fake_redis, freeze_time):
+    freeze_time(datetime(2026, 1, 1, 10, 0, tzinfo=timezone.utc))
 
     with pytest.raises(HTTPException) as exc:
         await start_fight(db_session, fighter.id, fake_redis)
@@ -296,7 +301,7 @@ async def test_rage_scales_with_diligence(db_session, fighter, fake_redis, in_wi
     await grant_charge(db_session, fighter.id, "potion_rage")
     await db_session.commit()
 
-    baseline = await load_combat_profile(db_session, fighter.id, IN_WINDOW.date())
+    baseline = await load_combat_profile(db_session, fighter.id, IN_WINDOW.date(), ZoneInfo("UTC"))
     assert baseline.diligence > 0  # sanity: квест реально засчитался
 
     fight = await start_fight(db_session, fighter.id, fake_redis, ["potion_rage"])
@@ -313,7 +318,9 @@ async def test_guard_reduces_boss_attack(db_session, fighter, fake_redis, in_win
     await grant_charge(db_session, fighter.id, "potion_guard")
     await db_session.commit()
 
-    profile = await load_combat_profile(db_session, fighter.id, datetime.now(timezone.utc).date())
+    profile = await load_combat_profile(
+        db_session, fighter.id, datetime.now(timezone.utc).date(), ZoneInfo("UTC")
+    )
     baseline_boss_attack = calculate_boss_attack(profile.max_hp, profile.diligence)
 
     fight = await start_fight(db_session, fighter.id, fake_redis, ["potion_guard"])
