@@ -287,6 +287,16 @@ export default function BossChatPage() {
         <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 text-center">
           <p className={`font-display text-sm ${endLabel.className}`}>{endLabel.text}</p>
           <p className="mt-2 text-sm text-gray-400">Урон боссу за бой: {fight.damage_dealt}</p>
+          {fight.status === 'won' && (
+            <p className="mt-1 flex items-center justify-center gap-3 text-sm text-gray-400">
+              <span className="flex items-center gap-1 text-cyber-secondary">
+                <Sword width={14} height={14} />+{fight.currency_awarded}
+              </span>
+              <span className="flex items-center gap-1 text-cyber-gold">
+                <Sparkle width={14} height={14} />+{fight.xp_awarded} XP
+              </span>
+            </p>
+          )}
           <Button variant="ghost" size="sm" onClick={handleReturn} className="mt-3">
             Вернуться
           </Button>

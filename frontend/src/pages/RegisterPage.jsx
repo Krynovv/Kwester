@@ -30,22 +30,26 @@ export default function RegisterPage() {
       >
         <h1 className="font-display text-base text-cyber-primary text-glow">РЕГИСТРАЦИЯ</h1>
 
-        <input
-          type="text"
-          placeholder="Имя пользователя"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-gray-100"
-          required
-        />
-        <input
-          type="email"
-          placeholder="Email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          className="w-full rounded-none bg-cyber-muted px-3 py-2 text-gray-100"
-          required
-        />
+        <div className="cyber-input-wrapper">
+          <input
+            type="text"
+            placeholder="Имя пользователя"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 font-sans text-gray-100"
+            required
+          />
+        </div>
+        <div className="cyber-input-wrapper">
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            className="cyber-input w-full rounded-none bg-cyber-muted px-3 py-2 text-gray-100"
+            required
+          />
+        </div>
         <PasswordInput
           placeholder="Пароль"
           value={password}

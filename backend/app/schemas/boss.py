@@ -51,5 +51,7 @@ class FightRead(BaseModel):
     player_hp: int
     player_max_hp: int
     damage_dealt: int
+    currency_awarded: int
+    xp_awarded: int
     active_consumables: list[str]
     rounds: list[RoundRead]

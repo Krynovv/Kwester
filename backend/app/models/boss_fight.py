@@ -70,6 +70,10 @@ class BossFight(Base):
     current_round: Mapped[int] = mapped_column(Integer, default=1)
     damage_dealt: Mapped[int] = mapped_column(Integer, default=0)
 
+    # Заполняются в _finish/_award только при победе; 0 при поражении/таймауте.
+    currency_awarded: Mapped[int] = mapped_column(Integer, default=0)
+    xp_awarded: Mapped[int] = mapped_column(Integer, default=0)
+
     started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)

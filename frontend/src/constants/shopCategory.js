@@ -9,7 +9,7 @@ export const CATEGORY_ACCENT = {
 // Порядок ключей ниже — порядок и легенды, и групп карточек.
 export const CATEGORY_LABEL = {
   defensive: 'защита',
-  outcome: 'исход боя',
+  outcome: 'бой',
   offensive: 'атака',
 }
 

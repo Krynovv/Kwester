@@ -32,6 +32,15 @@ export const ITEM_ICONS = {
 //   его нельзя ни взять в бой, ни выпить, поэтому в этот набор не входит.
 export const USABLE_ITEM_KEYS = new Set(['heal_100'])
 
+// heal_100 — расходник без боевой категории (не входит в
+// offensive/defensive/outcome), но тип у него всё равно есть — просто не тот,
+// что заведён под "взять в бой". Подписываем отдельно, а не заводим под это
+// одну строку новую категорию в shopCategory.js (сортировку/цвет рамки это
+// не затрагивает).
+export const TYPE_LABEL_OVERRIDES = {
+  heal_100: 'здоровье',
+}
+
 export function accentFor(item) {
   if (item.permanent) return 'var(--color-cyber-gold)'
   // heal_100/extra_boss_fight — расходники без категории (не входят в
