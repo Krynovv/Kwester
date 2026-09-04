@@ -24,6 +24,9 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 30
 
+    # Опционален: без него Telegram-напоминания просто выключены (см. app/main.py).
+    bot_token: SecretStr | None = None
+
 settings = Settings()
 
 

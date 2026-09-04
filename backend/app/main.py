@@ -1,4 +1,8 @@
+import asyncio
+import logging
 import os
+from contextlib import asynccontextmanager, suppress
+
 from fastapi import FastAPI, Request, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -6,8 +10,38 @@ from fastapi.staticfiles import StaticFiles
 from .routers import user, auth, quests, stats, tags, reward, boss, shop
 from .core.config import settings
 from .core.constant import MAX_REQUEST_BODY_SIZE
+from .core.database import async_session
+from .service.reminders import send_due_habit_reminders
+from .service.telegram import close_bot
 
-app = FastAPI(title="Kwester")
+logger = logging.getLogger(__name__)
+
+REMINDER_POLL_SECONDS = 30
+
+
+async def _reminder_loop() -> None:
+    while True:
+        try:
+            await send_due_habit_reminders(async_session)
+        except Exception:
+            logger.exception("Habit reminder tick failed")
+        await asyncio.sleep(REMINDER_POLL_SECONDS)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Без BOT_TOKEN Telegram не настроен — цикл просто не стартует (как и на
+    # ветках/окружениях, где эта интеграция не нужна).
+    task = asyncio.create_task(_reminder_loop()) if settings.bot_token is not None else None
+    yield
+    if task is not None:
+        task.cancel()
+        with suppress(asyncio.CancelledError):
+            await task
+        await close_bot()
+
+
+app = FastAPI(title="Kwester", lifespan=lifespan)
 
 
 @app.middleware("http")

@@ -127,9 +127,20 @@ async def update_quest(
         if quest.quest_type != QuestType.habit:
             raise HTTPException(status_code=400, detail="scheduled_days is only allowed for habit quests")
 
+    if "reminder_times" in update_data and update_data["reminder_times"] is not None:
+        if quest.quest_type != QuestType.habit:
+            raise HTTPException(status_code=400, detail="reminder_times is only allowed for habit quests")
+        new_scheduled_days = update_data.get("scheduled_days", quest.scheduled_days) or []
+        if not set(update_data["reminder_times"]).issubset(new_scheduled_days):
+            raise HTTPException(status_code=400, detail="reminder_times keys must be a subset of scheduled_days")
+
     schedule_changed = (
         "scheduled_days" in update_data
         and update_data["scheduled_days"] != quest.scheduled_days
+    )
+    reminder_times_changed = (
+        "reminder_times" in update_data
+        and update_data["reminder_times"] != quest.reminder_times
     )
 
     for field, value in update_data.items():
@@ -142,6 +153,16 @@ async def update_quest(
         quest.streak_checked_until = (
             local_today(resolve_zone(current_user.timezone)) if quest.scheduled_days else None
         )
+        # Дни, выпавшие из расписания, не должны молча продолжать слать напоминания.
+        if quest.reminder_times:
+            scheduled = set(quest.scheduled_days or [])
+            filtered = {day: t for day, t in quest.reminder_times.items() if int(day) in scheduled}
+            quest.reminder_times = filtered or None
+
+    # Изменившееся время напоминания должно сработать в тот же день, а не
+    # молчать до завтра из-за отметки, оставшейся от старого расписания.
+    if schedule_changed or reminder_times_changed:
+        quest.last_notified_date = None
 
     await db.commit()
     await db.refresh(quest)

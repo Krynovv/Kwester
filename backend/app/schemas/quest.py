@@ -1,7 +1,10 @@
+import re
 from datetime import datetime
 
 from pydantic import BaseModel, Field, ConfigDict, field_validator, model_validator
 from ..models.quest import QuestType, QuestStatus
+
+_TIME_RE = re.compile(r"^([01]\d|2[0-3]):[0-5]\d$")
 
 
 def _validate_scheduled_days(value: list[int] | None) -> list[int] | None:
@@ -15,6 +18,18 @@ def _validate_scheduled_days(value: list[int] | None) -> list[int] | None:
     return normalized
 
 
+def _validate_reminder_times(value: dict[int, str] | None) -> dict[int, str] | None:
+    if value is None:
+        return value
+    if not all(0 <= day <= 6 for day in value):
+        raise ValueError("reminder_times keys must be weekday numbers 0 (Пн) .. 6 (Вс)")
+    if not all(_TIME_RE.match(time) for time in value.values()):
+        raise ValueError("reminder_times values must be 24h HH:MM")
+    if not value:
+        raise ValueError("reminder_times cannot be an empty object — omit the field instead")
+    return value
+
+
 class QuestBase(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     description: str | None = None
@@ -24,11 +39,17 @@ class QuestBase(BaseModel):
     quest_type: QuestType = QuestType.once
     date_end: datetime | None = None
     scheduled_days: list[int] | None = None
+    reminder_times: dict[int, str] | None = None
 
     @field_validator("scheduled_days")
     @classmethod
     def check_scheduled_days(cls, value: list[int] | None) -> list[int] | None:
         return _validate_scheduled_days(value)
+
+    @field_validator("reminder_times")
+    @classmethod
+    def check_reminder_times(cls, value: dict[int, str] | None) -> dict[int, str] | None:
+        return _validate_reminder_times(value)
 
     @model_validator(mode="after")
     def check_stats_and_schedule(self):
@@ -36,6 +57,12 @@ class QuestBase(BaseModel):
             raise ValueError("stat_id and stat_id_2 must be different stats")
         if self.scheduled_days is not None and self.quest_type != QuestType.habit:
             raise ValueError("scheduled_days is only allowed for habit quests")
+        if self.reminder_times is not None:
+            if self.quest_type != QuestType.habit:
+                raise ValueError("reminder_times is only allowed for habit quests")
+            scheduled = set(self.scheduled_days or [])
+            if not set(self.reminder_times).issubset(scheduled):
+                raise ValueError("reminder_times keys must be a subset of scheduled_days")
         return self
 
 
@@ -51,11 +78,17 @@ class QuestUpdate(BaseModel):
     stat_id_2: int | None = None
     date_end: datetime | None = None
     scheduled_days: list[int] | None = None
+    reminder_times: dict[int, str] | None = None
 
     @field_validator("scheduled_days")
     @classmethod
     def check_scheduled_days(cls, value: list[int] | None) -> list[int] | None:
         return _validate_scheduled_days(value)
+
+    @field_validator("reminder_times")
+    @classmethod
+    def check_reminder_times(cls, value: dict[int, str] | None) -> dict[int, str] | None:
+        return _validate_reminder_times(value)
 
     @model_validator(mode="after")
     def check_stats_differ(self):

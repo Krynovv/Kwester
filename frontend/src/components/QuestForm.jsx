@@ -22,6 +22,7 @@ export default function QuestForm() {
   const [statId, setStatId] = useState('')
   const [statId2, setStatId2] = useState('')
   const [scheduledDays, setScheduledDays] = useState([])
+  const [reminderTime, setReminderTime] = useState('')
   const [dateEnd, setDateEnd] = useState('')
   const [timeEnd, setTimeEnd] = useState('')
 
@@ -39,7 +40,10 @@ export default function QuestForm() {
 
   const handleQuestTypeChange = (value) => {
     setQuestType(value)
-    if (value !== 'habit') setScheduledDays([])
+    if (value !== 'habit') {
+      setScheduledDays([])
+      setReminderTime('')
+    }
   }
 
   // Опция пропадает из второго списка, но сама по себе не сбрасывается —
@@ -51,6 +55,12 @@ export default function QuestForm() {
 
   const handleSubmit = (e) => {
     e.preventDefault()
+    // На создании время одно на все выбранные дни — своё время под каждый
+    // день можно будет выставить потом через "Изменить" (QuestCard).
+    const reminderTimes =
+      isHabit && reminderTime && scheduledDays.length > 0
+        ? Object.fromEntries(scheduledDays.map((day) => [day, reminderTime]))
+        : null
     mutate(
       {
         name,
@@ -60,6 +70,7 @@ export default function QuestForm() {
         stat_id_2: statId2 ? Number(statId2) : null,
         date_end: fromDateAndTimeInputValue(dateEnd, timeEnd),
         scheduled_days: isHabit && scheduledDays.length > 0 ? scheduledDays : null,
+        reminder_times: reminderTimes,
       },
       {
         onSuccess: () => {
@@ -69,6 +80,7 @@ export default function QuestForm() {
           setStatId('')
           setStatId2('')
           setScheduledDays([])
+          setReminderTime('')
           setDateEnd('')
           setTimeEnd('')
         },
@@ -125,6 +137,19 @@ export default function QuestForm() {
             Пропуск дня бьёт по боссу. Выполнение вне расписания засчитается в серию, но стоит 5 HP.
           </p>
           <WeekdayPicker value={scheduledDays} onChange={setScheduledDays} />
+
+          <div className="mt-2 flex items-center gap-2">
+            <TimePicker
+              value={reminderTime}
+              onChange={setReminderTime}
+              disabled={scheduledDays.length === 0}
+              className="w-28"
+            />
+            <p className="text-xs text-gray-500">
+              Время напоминания — необязательно, одно на все выбранные дни. Своё время на каждый день
+              можно будет настроить в редактировании.
+            </p>
+          </div>
         </div>
       )}
 

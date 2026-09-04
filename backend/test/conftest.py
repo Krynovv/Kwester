@@ -94,11 +94,19 @@ async def setup_db():
 @pytest.fixture
 async def db_session():
     async with TestSession() as session:
-        yield session  
+        yield session
         await session.rollback()
 
     async with engine.begin() as conn:
         await conn.execute(text("TRUNCATE TABLE users RESTART IDENTITY CASCADE"))
+
+@pytest.fixture
+def session_factory():
+    """Для кода, открывающего собственную сессию (не через Depends(get_db)) —
+    сейчас только send_due_habit_reminders, первая проактивная (не по запросу)
+    задача в проекте. Данные, нужные такому коду, должны быть закоммичены
+    через db_session, а не просто flush — иначе новая сессия их не увидит."""
+    return TestSession
 
 @pytest.fixture
 async def client(db_session, fake_redis):

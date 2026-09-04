@@ -1,6 +1,7 @@
 import os
 from fastapi import APIRouter, Depends, HTTPException, status, UploadFile, File
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..core.deps import get_current_user
@@ -8,7 +9,8 @@ from ..core.database import get_db
 from ..core.config import settings
 from ..core.constant import ALLOWED_AVATAR_TYPES, MAX_AVATAR_SIZE
 from ..models.user import User
-from ..schemas.user import UserRead, UserUpdate
+from ..schemas.user import TelegramLinkRequest, UserRead, UserUpdate
+from ..service.telegram import verify_init_data
 
 router = APIRouter(prefix = "/users", tags=["users"])
 
@@ -50,6 +52,32 @@ async def update_me(
         setattr(current_user, field, value)
 
     await db.commit()
+    await db.refresh(current_user)
+    return current_user
+
+
+@router.post("/me/telegram", response_model=UserRead)
+async def link_telegram(
+    data: TelegramLinkRequest,
+    db: AsyncSession = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    if settings.bot_token is None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Telegram integration is not configured")
+
+    parsed = verify_init_data(data.init_data)
+    if parsed is None or parsed.user is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram signature")
+
+    current_user.telegram_chat_id = parsed.user.id
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This Telegram account is already linked to another user",
+        )
     await db.refresh(current_user)
     return current_user
 
