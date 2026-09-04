@@ -1,7 +1,7 @@
 """add telegram_chat_id to user and reminder_times/last_notified_date to quest
 
 Revision ID: f3b8c1a29e6d
-Revises: a4e1f2c9d7b3
+Revises: ff7d57b9e371
 Create Date: 2026-09-04 12:00:00.000000
 
 """
@@ -14,7 +14,10 @@ from sqlalchemy.dialects import postgresql
 
 # revision identifiers, used by Alembic.
 revision: str = 'f3b8c1a29e6d'
-down_revision: Union[str, Sequence[str], None] = 'a4e1f2c9d7b3'
+# ff7d57b9e371 — реальный закоммиченный head. a4e1f2c9d7b3/6b3c37e88f4d,
+# на которые эта миграция изначально ссылалась, существовали только в рабочей
+# копии и не были закоммичены — CI/чистый чекаут их не видит.
+down_revision: Union[str, Sequence[str], None] = 'ff7d57b9e371'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
