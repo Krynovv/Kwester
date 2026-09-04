@@ -115,6 +115,72 @@ async def test_duplicate_stats_rejected_on_create(client, auth_headers, db_sessi
     assert response.status_code == 422
 
 
+async def test_reminder_times_rejected_for_non_habit(client, auth_headers):
+    response = await client.post("/quest", headers=auth_headers, json={
+        "name": "разовый",
+        "quest_type": "once",
+        "reminder_times": {"0": "08:00"},
+    })
+    assert response.status_code == 422
+
+
+async def test_reminder_times_must_be_subset_of_scheduled_days(client, auth_headers):
+    response = await client.post("/quest", headers=auth_headers, json={
+        "name": "зал",
+        "quest_type": "habit",
+        "scheduled_days": [0],
+        "reminder_times": {"1": "08:00"},
+    })
+    assert response.status_code == 422
+
+
+async def test_create_habit_with_reminder_times(client, auth_headers):
+    response = await client.post("/quest", headers=auth_headers, json={
+        "name": "зал",
+        "quest_type": "habit",
+        "scheduled_days": [0, 2],
+        "reminder_times": {"0": "08:00", "2": "09:30"},
+    })
+    assert response.status_code == 201
+    assert response.json()["reminder_times"] == {"0": "08:00", "2": "09:30"}
+
+
+async def test_patch_drops_reminder_time_for_day_removed_from_schedule(client, auth_headers, db_session):
+    """Убрать день из scheduled_days и не тронуть reminder_times — не должно
+    оставлять напоминание висеть на дне, который больше не по расписанию."""
+    created = await client.post("/quest", headers=auth_headers, json={
+        "name": "зал",
+        "quest_type": "habit",
+        "scheduled_days": [0, 2, 4],
+        "reminder_times": {"0": "08:00", "2": "09:00"},
+    })
+    quest_id = created.json()["id"]
+
+    response = await client.patch(f"/quest/{quest_id}", headers=auth_headers, json={
+        "scheduled_days": [2, 4],
+    })
+    assert response.status_code == 200
+    assert response.json()["reminder_times"] == {"2": "09:00"}
+
+    quest = (await db_session.execute(select(Quest).where(Quest.id == quest_id))).scalar_one()
+    await db_session.refresh(quest)
+    assert quest.reminder_times == {"2": "09:00"}
+
+
+async def test_patch_reminder_times_rejected_when_not_subset(client, auth_headers):
+    created = await client.post("/quest", headers=auth_headers, json={
+        "name": "зал",
+        "quest_type": "habit",
+        "scheduled_days": [0],
+    })
+    quest_id = created.json()["id"]
+
+    response = await client.patch(f"/quest/{quest_id}", headers=auth_headers, json={
+        "reminder_times": {"1": "08:00"},
+    })
+    assert response.status_code == 400
+
+
 async def test_other_users_stat_rejected(client, auth_headers, db_session):
     from app.models.user import User
     from app.models.stat import Stat

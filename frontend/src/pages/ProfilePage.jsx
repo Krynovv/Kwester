@@ -1,15 +1,16 @@
 import { useMemo, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Coins, Sword, Heart, Zap, Logout, Package, Clock } from 'pixelarticons/react'
+import { Coins, Sword, Heart, Zap, Logout, Package, Clock, Send } from 'pixelarticons/react'
 import { Link } from 'react-router-dom'
 import { fetchMe, logoutRequest } from '../api/auth'
 import { API_BASE_URL } from '../api/client'
 import { useStats } from '../hooks/useStats'
-import { useUpdateMe, useUploadAvatar } from '../hooks/useUser'
+import { useLinkTelegram, useUpdateMe, useUploadAvatar } from '../hooks/useUser'
 import { useShopItems, useApplyShopItem } from '../hooks/useShop'
 import { useAuthStore } from '../store/authStore'
 import { useLoadoutStore } from '../store/loadoutStore'
 import { USABLE_ITEM_KEYS } from '../constants/itemStyle'
+import { getTelegramInitData } from '../telegram'
 import StatsRingRow from '../components/StatsRingRow'
 import Button from '../components/Button'
 import InventoryItemCard from '../components/InventoryItemCard'
@@ -38,6 +39,7 @@ export default function ProfilePage() {
   const toggleArm = useLoadoutStore((state) => state.toggle)
   const { mutate: applyItem, isPending: isUsing, variables: usingKey } = useApplyShopItem()
   const { mutate: updateProfile, isPending: savingProfile } = useUpdateMe()
+  const { mutate: linkTelegram, isPending: linkingTelegram } = useLinkTelegram()
 
   const browserTimezone = detectTimezone()
   // Список зон строится из Intl и на несколько сотен пунктов — пересобирать
@@ -58,6 +60,11 @@ export default function ProfilePage() {
     const file = e.target.files?.[0]
     if (file) upload(file)
     e.target.value = ''
+  }
+
+  const handleLinkTelegram = () => {
+    const initData = getTelegramInitData()
+    if (initData) linkTelegram(initData)
   }
 
   if (isLoading) return <p className="text-gray-400">Загрузка...</p>
@@ -185,6 +192,35 @@ export default function ProfilePage() {
               size="sm"
               disabled={savingProfile}
               onClick={() => updateProfile({ timezone: browserTimezone })}
+              className="shrink-0"
+            >
+              Обновить
+            </Button>
+          </div>
+        )}
+      </div>
+
+      <div className="rounded-none border-2 border-cyber-border bg-cyber-card p-4 sm:p-6">
+        <h2 className="mb-1 flex items-center gap-2 font-display text-sm text-gray-100">
+          <Send width={18} height={18} className="text-cyber-secondary" />
+          TELEGRAM
+        </h2>
+        <p className="mb-3 font-sans text-sm text-gray-500">
+          Напоминания о времени привычек приходят сюда — время задаётся у каждого дня в редактировании привычки.
+        </p>
+
+        {user?.telegram_chat_id ? (
+          <p className="font-sans text-sm text-cyber-accent">Подключено — уведомления приходят в Telegram.</p>
+        ) : (
+          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+            <p className="font-sans text-sm text-gray-400">
+              Не подключено. Откройте Kwester через Telegram-бота, чтобы включить уведомления.
+            </p>
+            <Button
+              variant="ghost"
+              size="sm"
+              disabled={linkingTelegram}
+              onClick={handleLinkTelegram}
               className="shrink-0"
             >
               Обновить

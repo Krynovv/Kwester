@@ -46,6 +46,11 @@ class Token(BaseModel):
 class RefreshRequest(BaseModel):
     refresh_token: str
 
+class TelegramLinkRequest(BaseModel):
+    # Сырая подписанная строка window.Telegram.WebApp.initData — проверяется
+    # на бэкенде через BOT_TOKEN, клиенту доверять нельзя (см. service/telegram.py).
+    init_data: str = Field(min_length=1)
+
 class UserRead(UserBase):
     model_config = ConfigDict(from_attributes=True)
 
@@ -56,4 +61,7 @@ class UserRead(UserBase):
     current_hp: int
     boss_currency_balance: int
     timezone: str
+    # Не выставляется через общий PATCH /users/me — только через
+    # POST /users/me/telegram, где id проверяется подписью бота.
+    telegram_chat_id: int | None = None
 

@@ -1,7 +1,10 @@
+import { useEffect, useRef } from 'react'
 import { Link, NavLink, Outlet } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import { Heart, Coins, Sword, User } from 'pixelarticons/react'
 import { fetchMe } from '../api/auth'
+import { getTelegramInitData } from '../telegram'
+import { useLinkTelegram } from '../hooks/useUser'
 
 const navItems = [
   { to: '/quests', label: 'Квесты' },
@@ -14,6 +17,18 @@ const navLinkClassName = ({ isActive }) =>
 
 export default function Layout() {
   const { data: user } = useQuery({ queryKey: ['me'], queryFn: fetchMe })
+  const { mutate: linkTelegram } = useLinkTelegram()
+  const linkAttempted = useRef(false)
+
+  // Открыто как Telegram Mini App и аккаунт ещё не привязан — привязываем
+  // молча, без отдельного экрана: initData уже содержит подписанный id.
+  useEffect(() => {
+    if (linkAttempted.current || !user || user.telegram_chat_id) return
+    const initData = getTelegramInitData()
+    if (!initData) return
+    linkAttempted.current = true
+    linkTelegram(initData)
+  }, [user, linkTelegram])
 
   return (
     <div className="min-h-screen bg-cyber-bg text-gray-100">

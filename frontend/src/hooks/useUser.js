@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { updateMe, uploadAvatar } from '../api/user'
+import { linkTelegram, updateMe, uploadAvatar } from '../api/user'
 import { useToastStore } from '../store/toastStore'
 
 export function useUpdateMe() {
@@ -29,5 +29,20 @@ export function useUploadAvatar() {
       addToast('Аватарка обновлена', 'success')
     },
     // Ошибка остаётся только в профиле (ProfilePage) — тост был бы дублем.
+  })
+}
+
+export function useLinkTelegram() {
+  const queryClient = useQueryClient()
+  const addToast = useToastStore((state) => state.addToast)
+  return useMutation({
+    mutationFn: linkTelegram,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['me'] })
+      addToast('Telegram подключён — уведомления о привычках теперь приходят в бота', 'success')
+    },
+    // Без тоста на ошибку: автопривязка при каждом открытии внутри Telegram
+    // не должна пугать пользователя, если она молча не удалась (например,
+    // аккаунт уже привязан к другому пользователю).
   })
 }

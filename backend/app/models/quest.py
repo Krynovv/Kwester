@@ -3,7 +3,7 @@ import enum
 from datetime import datetime, timezone, date
 from typing import TYPE_CHECKING
 from sqlalchemy import Integer, String, Text, Enum, DateTime, Date, ForeignKey
-from sqlalchemy.dialects.postgresql import ARRAY
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from ..core.database import Base
 
@@ -57,6 +57,14 @@ class Quest(Base):
     # Служебное поле: последняя дата, до которой уже учтены пропуски расписания
     # (чтобы не штрафовать за один и тот же пропуск повторно при каждом GET /quest).
     streak_checked_until: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
+
+    # Тоже только для habit. Подмножество scheduled_days со своим временем
+    # напоминания: {"0": "08:00", ...} (ключ — день недели строкой, JSON не
+    # умеет в int-ключи). День без записи здесь просто не шлёт напоминание.
+    reminder_times: Mapped[dict[str, str] | None] = mapped_column(JSONB, nullable=True, default=None)
+    # Последняя дата (в поясе пользователя), за которую уже отправлено
+    # напоминание — не даёт продублировать отправку при повторном тике цикла.
+    last_notified_date: Mapped[date | None] = mapped_column(Date, nullable=True, default=None)
 
     tags: Mapped["Tag | None"] = relationship(back_populates="quests")
     users: Mapped["User"] = relationship(back_populates="quests")

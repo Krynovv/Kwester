@@ -35,3 +35,10 @@ export function initTelegramWebApp() {
     // смахивание вниз для закрытия — не критично, если недоступно
   }
 }
+
+// Сырая подписанная ботом строка с id пользователя Telegram — сервер
+// проверяет её подпись через BOT_TOKEN (см. POST /users/me/telegram).
+// Вне Telegram (обычный браузер) window.Telegram нет вовсе — null ожидаем.
+export function getTelegramInitData() {
+  return window.Telegram?.WebApp?.initData || null
+}

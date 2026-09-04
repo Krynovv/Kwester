@@ -1,6 +1,6 @@
 from __future__ import annotations
 from app.models.reward import Reward
-from sqlalchemy import Integer, String, DateTime, Date
+from sqlalchemy import BigInteger, Integer, String, DateTime, Date
 from sqlalchemy.orm import relationship, Mapped, mapped_column
 from datetime import datetime, timezone
 from ..core.database import Base
@@ -29,7 +29,10 @@ class User(Base):
     # IANA-имя пояса ("Europe/Moscow"). Определяет, где проходит граница суток
     # для квестов, серий, регена HP и окна боя.
     timezone: Mapped[str] = mapped_column(String(64), nullable=False, default=DEFAULT_TIMEZONE, server_default=DEFAULT_TIMEZONE)
-    
+    # id пользователя Telegram (= chat_id личного чата с ботом). Заполняется при
+    # открытии приложения как Telegram Mini App — см. service/telegram.py.
+    telegram_chat_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True, unique=True, default=None)
+
     currency_balance: Mapped[int] = mapped_column(Integer, default=0)
     current_hp: Mapped[int] = mapped_column(Integer, default=100)
     boss_currency_balance: Mapped[int] = mapped_column(Integer, default=0)

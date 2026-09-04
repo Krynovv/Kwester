@@ -43,6 +43,7 @@ export default function QuestCard({ quest, statName, statName2 }) {
   const [statId, setStatId] = useState(quest.stat_id ? String(quest.stat_id) : '')
   const [statId2, setStatId2] = useState(quest.stat_id_2 ? String(quest.stat_id_2) : '')
   const [scheduledDays, setScheduledDays] = useState(quest.scheduled_days ?? [])
+  const [reminderTimes, setReminderTimes] = useState(quest.reminder_times ?? {})
   const [dateEnd, setDateEnd] = useState(toDateInputValue(quest.date_end))
   const [timeEnd, setTimeEnd] = useState(toTimeInputValue(quest.date_end))
 
@@ -79,7 +80,10 @@ export default function QuestCard({ quest, statName, statName2 }) {
           stat_id_2: statId2 ? Number(statId2) : null,
           date_end: fromDateAndTimeInputValue(dateEnd, timeEnd),
           ...(quest.quest_type === 'habit'
-            ? { scheduled_days: scheduledDays.length > 0 ? scheduledDays : null }
+            ? {
+                scheduled_days: scheduledDays.length > 0 ? scheduledDays : null,
+                reminder_times: Object.keys(reminderTimes).length > 0 ? reminderTimes : null,
+              }
             : {}),
         },
       },
@@ -120,8 +124,14 @@ export default function QuestCard({ quest, statName, statName2 }) {
             </p>
             <p className="mb-1 text-xs text-gray-500">
               Пропуск дня бьёт по боссу. Выполнение вне расписания засчитается в серию, но стоит 5 HP.
+              Время у дня — необязательно, включает Telegram-напоминание.
             </p>
-            <WeekdayPicker value={scheduledDays} onChange={setScheduledDays} />
+            <WeekdayPicker
+              value={scheduledDays}
+              onChange={setScheduledDays}
+              times={reminderTimes}
+              onTimesChange={setReminderTimes}
+            />
           </div>
         )}
 
@@ -154,7 +164,13 @@ export default function QuestCard({ quest, statName, statName2 }) {
             )}
             {isScheduledHabit && (
               <span>
-                · {quest.scheduled_days.map((d) => WEEKDAY_LABELS[d]).join('/')}
+                ·{' '}
+                {quest.scheduled_days
+                  .map((d) => {
+                    const time = quest.reminder_times?.[d]
+                    return time ? `${WEEKDAY_LABELS[d]} ${time}` : WEEKDAY_LABELS[d]
+                  })
+                  .join(' / ')}
               </span>
             )}
             {isScheduledHabit && quest.current_streak > 0 && (
